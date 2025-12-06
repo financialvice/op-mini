@@ -1,0 +1,50 @@
+{
+  "name": "@repo/db",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check . --unsafe --write",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "react-native": "./src/index.native.ts",
+      "default": "./src/index.ts"
+    },
+    "./admin": "./src/admin.ts",
+    "./devtools": "./src/devtools.ts"
+  },
+  "peerDependencies": {
+    "@instantdb/react": "catalog:",
+    "@instantdb/react-native": "catalog:",
+    "next": "catalog:",
+    "react": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@instantdb/react": {
+      "optional": true
+    },
+    "@instantdb/react-native": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@instantdb/admin": "catalog:",
+    "@instantdb/core": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@instantdb/react": "catalog:",
+    "@instantdb/react-native": "catalog:",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "instant-cli": "catalog:",
+    "stripe": "catalog:"
+  }
+}

@@ -1,0 +1,29 @@
+# Lefthook configuration for cloud-code project
+# https://lefthook.dev/configuration/
+
+# Run checks before committing
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      run: bun run lint
+      skip:
+        - merge
+        - rebase
+    typecheck:
+      run: bun run typecheck
+      skip:
+        - merge
+        - rebase
+
+# Run tests before pushing (when you add tests)
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      run: bun run lint
+    typecheck:
+      run: bun run typecheck
+    # Uncomment when you have tests
+    # test:
+    #   run: bun test

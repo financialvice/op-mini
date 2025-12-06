@@ -1,0 +1,5275 @@
+# CSS Parser
+Source: https://docs.uniwind.dev/api/css
+
+Write custom CSS classes alongside Tailwind in your React Native app
+
+## Overview
+
+Uniwind includes a built-in CSS parser that allows you to use traditional CSS alongside Tailwind utilities. While our primary focus is on Tailwind syntax, you can write custom CSS classes and use them directly in your React Native components.
+
+<Info>
+  We're actively seeking feedback to identify missing features and limitations. Your input helps us improve CSS support in Uniwind!
+</Info>
+
+## Why Use Custom CSS?
+
+While Tailwind provides utility classes for most styling needs, custom CSS can be useful for:
+
+* Complex, reusable component styles that would be verbose with utilities
+* Migrating existing web codebases to React Native
+* Defining design system components with consistent styling
+* Advanced animations and transitions
+
+## Basic Usage
+
+Define custom CSS classes in your `global.css` file and use them with the `className` prop:
+
+### CSS Definition
+
+```css global.css theme={null}
+.container {
+    flex: 1;
+    background-color: red;
+    width: 50px;
+    height: 50px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+```
+
+### Using in Components
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+export const MyComponent = () => (
+  <View className="container" />
+)
+```
+
+## Combining CSS Classes with Tailwind
+
+You can seamlessly mix custom CSS classes with Tailwind utilities:
+
+### CSS Definition
+
+```css global.css theme={null}
+.card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+```
+
+### Usage with Tailwind
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const Card = ({ title, children }) => (
+  <View className="card p-4 m-2">
+    <Text className="card-header mb-2">{title}</Text>
+    <View className="flex-1">{children}</View>
+  </View>
+)
+```
+
+### Using light-dark() Function
+
+Uniwind supports the CSS [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark) function, which provides a convenient way to define different values for light and dark themes:
+
+```css  theme={null}
+.adaptive-card {
+    background-color: light-dark(#ffffff, #1f2937);
+    color: light-dark(#111827, #f9fafb);
+    border-color: light-dark(#e5e7eb, #374151);
+}
+```
+
+The first value is used in light mode, and the second value is used in dark mode. This automatically adapts when the theme changes.
+
+```tsx  theme={null}
+<View className="adaptive-card p-4">
+  {/* Colors automatically switch between light and dark themes */}
+</View>
+```
+
+<Tip>
+  The `light-dark()` function is particularly useful for maintaining color consistency across themes without needing separate CSS variables for each theme.
+</Tip>
+
+## Best Practices
+
+<Tip>
+  **Prefer Tailwind utilities for simple styles.** Use custom CSS classes for complex, reusable component patterns that would be verbose or repetitive with utility classes.
+</Tip>
+
+<Warning>
+  **Avoid deeply nested selectors.** React Native's styling model is simpler than web CSS. Keep your selectors flat and component-scoped for best results.
+</Warning>
+
+### Recommended Pattern
+
+```css  theme={null}
+/* ✅ Good: Component-scoped classes */
+.product-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.product-card-image {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 8px;
+}
+
+.product-card-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 12px;
+}
+```
+
+```css  theme={null}
+/* ❌ Avoid: Complex nested selectors */
+.product-card .image-container .image .overlay .title {
+    /* This is too complex for React Native */
+}
+```
+
+## Performance Considerations
+
+* **Compile-time parsing**: CSS is parsed at build time, not runtime, for optimal performance
+* **No runtime overhead**: Custom CSS classes are converted to React Native styles during compilation
+
+## Feedback & Feature Requests
+
+<Info>
+  The CSS parser is continuously evolving. We're actively looking for feedback to help identify missing features and limitations.
+</Info>
+
+<Card title="Share Your Feedback" icon="message" href="https://github.com/Unistyles-OSS/uniwind/discussions">
+  Let us know what CSS features you need or issues you've encountered!
+</Card>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Tailwind Basics" icon="wind" href="/tailwind-basics">
+    Learn how to use Tailwind utilities in Uniwind
+  </Card>
+
+  <Card title="Theming" icon="palette" href="/theming/basics">
+    Discover theming and CSS variables in Uniwind
+  </Card>
+</CardGroup>
+
+
+# CSS Functions
+Source: https://docs.uniwind.dev/api/css-functions
+
+Use CSS functions to create dynamic styles
+
+## Overview
+
+Uniwind provides device-specific CSS functions that automatically adapt to platform characteristics. These functions help you create responsive styles that work seamlessly across different devices and screen densities.
+
+<Info>
+  CSS functions must be defined as utilities in your `global.css` file before use. You cannot use them directly in className props with arbitrary values.
+</Info>
+
+## Available Functions
+
+### hairlineWidth()
+
+Returns the thinnest line width that can be displayed on the device. Perfect for creating subtle borders and dividers.
+
+**Define in global.css**
+
+```css  theme={null}
+@layer utilities {
+  .h-hairline {
+    height: hairlineWidth();
+  }
+  .w-hairline {
+    width: calc(hairlineWidth() * 10); /* 10 * device hairline width */
+  }
+}
+```
+
+**Usage Example**
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+<View className="w-hairline border-gray-300" />
+```
+
+### fontScale()
+
+Multiplies a base font size by the device's font scale setting (accessibility setting). This ensures your text respects user preferences for larger or smaller text.
+
+**Define in global.css**
+
+```css  theme={null}
+@layer utilities {
+  .text-sm-scaled {
+    font-size: calc(fontScale() * 0.9);
+  }
+  .text-base-scaled {
+    font-size: fontScale();
+  }
+}
+```
+
+**Usage Example**
+
+```tsx  theme={null}
+import { Text } from 'react-native'
+
+// Multiple text sizes
+<Text className="text-sm-scaled text-gray-600">Small text</Text>
+<Text className="text-base-scaled">Regular text</Text>
+```
+
+### pixelRatio()
+
+Multiplies a value by the device's pixel ratio. Useful for creating pixel-perfect designs that scale appropriately across different screen densities.
+
+**Define in global.css**
+
+```css  theme={null}
+@layer utilities {
+  .w-icon {
+    width: pixelRatio();
+  }
+  .w-avatar {
+    width: calc(pixelRatio() * 2);
+  }
+}
+```
+
+**Usage Example**
+
+```tsx  theme={null}
+import { View, Image } from 'react-native'
+
+<Image
+  source={{ uri: 'avatar.png' }}
+  className="w-avatar rounded-full"
+/>
+```
+
+### light-dark()
+
+Returns different values based on the current theme mode (light or dark). This function automatically adapts when the theme changes, making it perfect for creating theme-aware styles without manual theme switching logic.
+
+**Define in global.css**
+
+```css  theme={null}
+@layer utilities {
+  .bg-adaptive {
+    background-color: light-dark(#ffffff, #1f2937);
+  }
+  .text-adaptive {
+    color: light-dark(#111827, #f9fafb);
+  }
+  .border-adaptive {
+    border-color: light-dark(#e5e7eb, #374151);
+  }
+}
+```
+
+**Usage Example**
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+<View className="bg-adaptive border-adaptive border p-4 rounded-lg">
+  <Text className="text-adaptive">
+    This text and background automatically adapt to light/dark theme
+  </Text>
+</View>
+```
+
+<Tip>
+  The `light-dark()` function is particularly useful for maintaining color consistency across themes without needing separate CSS variables for each theme.
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="CSS Parser" icon="css" href="/api/css">
+    Learn about CSS variable support and custom CSS classes
+  </Card>
+
+  <Card title="Theming" icon="palette" href="/theming/basics">
+    Combine with themes for powerful styling
+  </Card>
+</CardGroup>
+
+
+# metro.config.js
+Source: https://docs.uniwind.dev/api/metro-config
+
+Configure Uniwind in your Metro bundler for React Native
+
+## Overview
+
+The `withUniwindConfig` function configures Uniwind in your Metro bundler. This is required to enable CSS processing, type generation, and theme support in your React Native application.
+
+<Info>
+  All Metro configuration changes require a Metro bundler restart to take effect. Clear the cache with `npx expo start --clear` if you encounter issues.
+</Info>
+
+## Basic Usage
+
+Import and wrap your Metro config with `withUniwindConfig`:
+
+```js metro.config.js theme={null}
+const { getDefaultConfig } = require('expo/metro-config');
+const { withUniwindConfig } = require('uniwind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+});
+```
+
+## Configuration Options
+
+### cssEntryFile
+
+<ParamField path="cssEntryFile" type="string" required>
+  The relative path to your CSS entry file from the project root. This file should contain your Tailwind imports and custom CSS.
+</ParamField>
+
+<Warning>
+  **Important:** The location of your CSS entry file determines the app root - Tailwind will automatically scan for classNames starting from this directory. Files outside this directory require the `@source` directive in your CSS file.
+</Warning>
+
+**Example:**
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+});
+```
+
+Your CSS entry file should follow this structure:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Your custom CSS and themes */
+```
+
+<Tip>
+  Keep your CSS entry file in the root of your application folder (e.g., `src`, `app`). If you have components outside this folder, use `@source` to include them. See the [monorepo guide](/monorepos) for details.
+</Tip>
+
+### extraThemes
+
+<ParamField path="extraThemes" type="Array<string>">
+  An array of custom theme names beyond the default `light` and `dark` themes. Each theme must be defined in your CSS using the `@variant` directive.
+</ParamField>
+
+**Example:**
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  extraThemes: ['ocean', 'sunset', 'premium'],
+});
+```
+
+Define these themes in your CSS:
+
+```css global.css theme={null}
+@layer theme {
+  :root {
+    @variant ocean {
+      --color-background: #0c4a6e;
+      --color-foreground: #e0f2fe;
+    }
+
+    @variant sunset {
+      --color-background: #7c2d12;
+      --color-foreground: #fed7aa;
+    }
+
+    @variant premium {
+      --color-background: #1e1b4b;
+      --color-foreground: #fef3c7;
+    }
+  }
+}
+```
+
+<Warning>
+  After adding new themes, restart your Metro bundler for changes to take effect.
+</Warning>
+
+<Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+  Learn more about creating and managing custom themes
+</Card>
+
+### dtsFile
+
+<ParamField path="dtsFile" type="string">
+  The path where Uniwind will auto-generate TypeScript type definitions for your CSS classes and themes. Defaults to `./uniwind-types.d.ts` in your project root.
+</ParamField>
+
+**Example:**
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  dtsFile: './src/uniwind-types.d.ts',
+});
+```
+
+<Info>
+  Place the `.d.ts` file in your `src` or `app` directory for automatic TypeScript inclusion. For custom paths outside these directories, add the file to your `tsconfig.json`.
+</Info>
+
+**TypeScript configuration:**
+
+```json tsconfig.json theme={null}
+{
+  "compilerOptions": {
+    // ...
+  },
+  "include": [
+    // ...
+    "./uniwind-types.d.ts"  // If placed in project root
+  ]
+}
+```
+
+### polyfills
+
+<ParamField path="polyfills" type="Polyfills">
+  Configuration for CSS unit polyfills and adjustments to ensure cross-platform consistency.
+</ParamField>
+
+#### polyfills.rem
+
+<ParamField path="polyfills.rem" type="number" default={16}>
+  The base font size (in pixels) used for rem unit calculations. Defaults to `16`, which is the standard browser default.
+</ParamField>
+
+**Example:**
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  polyfills: {
+    rem: 14, // Change rem base to 14px
+  },
+});
+```
+
+**Use case:**
+
+Adjusting the rem base is useful when:
+
+* Your design system uses a different base font size
+* You need to scale your entire UI proportionally
+* You're migrating from a web app with a custom rem base
+* You're migrating from Nativewind
+
+### debug
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug mode to identify unsupported CSS properties and classNames. When enabled, Uniwind will log errors for web-specific CSS that doesn't work in React Native.
+</ParamField>
+
+**Example:**
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  debug: true,
+});
+```
+
+**Debug output example:**
+
+```
+Uniwind Error [CSS Processor] - Unsupported value type - "filters" for className headerBlur
+```
+
+<Tip>
+  Enable debug mode during development if you're experiencing styling issues or migrating from web. It helps catch web-specific CSS properties that aren't supported in React Native.
+</Tip>
+
+<Warning>
+  Disable it in production builds.
+</Warning>
+
+## Complete Configuration Example
+
+Here's a full example with all options configured:
+
+```js metro.config.js theme={null}
+const { getDefaultConfig } = require('expo/metro-config');
+const { withUniwindConfig } = require('uniwind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+// Your custom Metro modifications
+// ...
+
+module.exports = withUniwindConfig(config, {
+  // Required: Path to your CSS entry file
+  cssEntryFile: './src/global.css',
+
+  // Optional: Custom themes beyond light/dark
+  extraThemes: ['ocean', 'sunset', 'premium', 'high-contrast'],
+
+  // Optional: TypeScript definitions path
+  dtsFile: './src/uniwind-types.d.ts',
+
+  // Optional: CSS polyfills
+  polyfills: {
+    rem: 14, // Custom rem base size
+  },
+
+  // Optional: Enable debug mode for troubleshooting
+  debug: true,
+});
+```
+
+## Bare React Native
+
+For bare React Native projects (non-Expo), use the `@react-native/metro-config` package:
+
+```js metro.config.js theme={null}
+const { getDefaultConfig } = require('@react-native/metro-config');
+const { withUniwindConfig } = require('uniwind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  dtsFile: './src/uniwind-types.d.ts',
+});
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="laptop" href="/quickstart">
+    Get started with Uniwind in 3 minutes
+  </Card>
+
+  <Card title="Monorepos & @source" icon="folder-tree" href="/monorepos">
+    Learn how to include components from multiple directories
+  </Card>
+
+  <Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+    Create and manage custom themes beyond light and dark
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Configure global styles and CSS variables
+  </Card>
+
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Learn the fundamentals of theming in Uniwind
+  </Card>
+</CardGroup>
+
+
+# Platform Selectors
+Source: https://docs.uniwind.dev/api/platform-select
+
+Apply platform-specific styles with built-in selectors for iOS, Android, and Web
+
+## Overview
+
+Uniwind provides built-in platform selectors that allow you to apply styles conditionally based on the platform your app is running on. This is essential for creating platform-specific user experiences in React Native.
+
+<Info>
+  Platform selectors are resolved at runtime and automatically apply the correct styles for the current platform.
+</Info>
+
+## Basic Usage
+
+Use platform selectors directly in your `className` prop with the syntax `platform:utility`:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const PlatformExample = () => (
+  <View className="ios:bg-red-500 android:bg-blue-500 web:bg-green-500">
+    <Text className="ios:text-white android:text-white web:text-black">
+      This component has different styles on each platform
+    </Text>
+  </View>
+)
+```
+
+## Why Use Platform Selectors?
+
+Platform selectors are superior to React Native's `Platform.select()` API for several reasons:
+
+### ❌ Not Recommended: Platform.select()
+
+```tsx  theme={null}
+import { Platform } from 'react-native'
+import { View } from 'react-native'
+
+<View
+  className={Platform.select({
+    ios: 'bg-red-500',
+    android: 'bg-blue-500',
+  })}
+/>
+```
+
+**Downsides:**
+
+* Requires importing `Platform` API
+* More verbose syntax
+* Cannot combine with other utilities easily
+* Less readable when multiple platform conditions are needed
+
+### ✅ Recommended: Platform Selectors
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+<View className="ios:bg-red-500 android:bg-blue-500" />
+```
+
+**Benefits:**
+
+* Clean, declarative syntax
+* No extra imports needed
+* Easy to combine with other Tailwind utilities
+* Better readability and maintainability
+* Works seamlessly with theme variants
+
+## Supported Platforms
+
+<ParamField path="ios" type="selector">
+  Targets iOS devices (iPhone, iPad). Styles are applied only when running on iOS.
+</ParamField>
+
+<ParamField path="android" type="selector">
+  Targets Android devices. Styles are applied only when running on Android.
+</ParamField>
+
+<ParamField path="web" type="selector">
+  Targets web browsers. Styles are applied only when running in a web environment (e.g., React Native Web).
+</ParamField>
+
+<ParamField path="native" type="selector">
+  Targets both iOS and Android platforms. Styles are applied on mobile platforms but not on web. This is a convenient shorthand when you want to apply the same styles to both iOS and Android.
+</ParamField>
+
+## Native Selector
+
+The `native:` selector is a convenient shorthand for targeting both iOS and Android platforms simultaneously. Instead of writing duplicate styles for both platforms, you can use `native:` to apply styles to all mobile platforms at once.
+
+### ❌ Verbose: Duplicate platform styles
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+<View className="ios:bg-blue-500 android:bg-blue-500 web:bg-gray-500">
+  <Text className="ios:text-white android:text-white web:text-black">
+    Mobile vs Web styling
+  </Text>
+</View>
+```
+
+### ✅ Concise: Using native: selector
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+<View className="native:bg-blue-500 web:bg-gray-500">
+  <Text className="native:text-white web:text-black">
+    Mobile vs Web styling
+  </Text>
+</View>
+```
+
+<Tip>
+  Use `native:` when your iOS and Android styles are identical, and only web differs. This reduces duplication and improves maintainability.
+</Tip>
+
+## Examples
+
+### Platform-Specific Colors
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const PlatformColors = () => (
+  <View className="ios:bg-blue-500 android:bg-green-500 web:bg-purple-500 p-4">
+    <Text className="ios:text-white android:text-white web:text-white">
+      Different background color on each platform
+    </Text>
+  </View>
+)
+```
+
+### Platform-Specific Spacing
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const PlatformSpacing = () => (
+  <View className="ios:pt-12 android:pt-6 web:pt-4">
+    <Text>Platform-specific top padding</Text>
+  </View>
+)
+```
+
+## Platform Media Queries in @theme
+
+While platform selectors like `ios:`, `android:`, `native:`, and `web:` are great for component-level styling, Uniwind also supports platform-specific media queries within the `@theme` directive. This allows you to define platform-specific design tokens and CSS variables that affect your entire theme.
+
+<Info>
+  Platform media queries in `@theme` are processed at build time and define global theme values, while platform selectors are resolved at runtime for component-specific styles.
+</Info>
+
+### Theme Configuration
+
+Use `@media` queries inside `@theme` to define platform-specific CSS variables in your `global.css`:
+
+```css  theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+    :root {
+        /* Base configuration applies to all platforms */
+        --font-sans: "Inter";
+        --spacing-4: 16px;
+
+        /* iOS-specific overrides */
+        @media ios {
+            --font-sans: "system-ui";
+            --spacing-4: 20px;
+        }
+
+        /* Android-specific overrides */
+        @media android {
+            --font-sans: "sans-serif";
+            --spacing-4: 18px;
+        }
+
+        /* Web-specific overrides */
+        @media web {
+            --font-sans: "Inter";
+            --spacing-4: 16px;
+        }
+    }
+}
+```
+
+### When to Use Each Approach
+
+Understanding when to use platform selectors vs platform media queries helps you build better cross-platform apps:
+
+<AccordionGroup>
+  <Accordion title="Platform Selectors (ios:, android:, native:, web:)" icon="code">
+    **Use for component-specific styling**
+
+    ```tsx  theme={null}
+    <View className="ios:pt-12 android:pt-6 web:pt-4" />
+    <View className="native:pt-10 web:pt-4" />
+    ```
+
+    * High flexibility - mix and match on any component
+    * Best for: Different padding, colors, or layouts for specific UI elements
+    * Use `native:` for shared mobile styles
+  </Accordion>
+
+  <Accordion title="Platform Media Queries in @theme" icon="palette">
+    **Use for global theme configuration**
+
+    ```css  theme={null}
+    @layer theme {
+        :root {
+            --font-sans: "Inter";
+
+            @media ios {
+                --font-sans: "system-ui";
+            }
+        }
+    }
+    ```
+
+    * Affects entire design system
+    * Best for: Platform-specific fonts, spacing scales, or brand colors
+  </Accordion>
+</AccordionGroup>
+
+### Platform-Specific Typography
+
+One of the most common use cases is defining platform-appropriate font families:
+
+```css  theme={null}
+@layer theme {
+    :root {
+        --font-sans: "Inter";
+        --font-base: 16px;
+
+        @media ios {
+            --font-sans: "-apple-system", "SF Pro Text";
+            --font-base: 17px; /* iOS prefers slightly larger text */
+        }
+
+        @media android {
+            --font-sans: "Roboto";
+            --font-base: 14px; /* Material Design standard */
+        }
+
+        @media web {
+            --font-sans: "Inter", "system-ui", sans-serif;
+            --font-base: 16px;
+        }
+    }
+}
+```
+
+Then use the font variables in your components:
+
+```tsx  theme={null}
+import { Text } from 'react-native'
+
+export const PlatformText = () => (
+  <Text className="font-sans text-base">
+    This text automatically uses the platform-appropriate font
+  </Text>
+)
+```
+
+### Platform-Specific Spacing
+
+Adjust spacing scales to match platform design guidelines:
+
+```css  theme={null}
+@layer theme {
+    :root {
+        @media ios {
+            /* iOS prefers more generous spacing */
+            --spacing-4: 20px;
+            --spacing-6: 28px;
+        }
+
+        @media android {
+            /* Material Design spacing */
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+        }
+    }
+}
+```
+
+### Combining with Theme Variants
+
+Platform media queries work seamlessly with theme variants like `dark`:
+
+```css  theme={null}
+@layer theme {
+    :root {
+        --font-sans: "Inter";
+
+        @variant dark {
+            --color-background: #000000;
+            --color-foreground: #ffffff;
+        }
+
+        @variant light {
+            --color-background: #ffffff;
+            --color-foreground: #000000;
+        }
+
+        @media ios {
+            --font-sans: "SF Pro Text";
+        }
+
+        @media android {
+            --font-sans: "Roboto";
+        }
+    }
+}
+```
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const ThemedText = () => (
+  <View className="bg-background">
+    <Text className="font-sans text-foreground">
+      Platform and theme-aware text
+    </Text>
+  </View>
+)
+```
+
+<Warning>
+  Platform media queries can only be used inside the `@theme` directive in your `global.css` file. They define global theme values, not component-specific styles.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Supported Class Names" icon="table" href="/class-names">
+    Learn about all supported Tailwind classes in Uniwind
+  </Card>
+
+  <Card title="Theming" icon="palette" href="/theming/basics">
+    Combine platform selectors with theme variants
+  </Card>
+</CardGroup>
+
+
+# useCSSVariable
+Source: https://docs.uniwind.dev/api/use-css-variable
+
+Access CSS variable values in JavaScript with automatic theme updates
+
+## Overview
+
+The `useCSSVariable` hook allows you to retrieve CSS variable values directly in JavaScript. It's particularly useful when you need to access theme colors, spacing values, or other design tokens programmatically for calculations, animations, or third-party library configurations.
+
+<Warning>
+  This hook should be used sparingly. For most styling use cases, prefer using the `className` prop with Tailwind utilities.
+</Warning>
+
+## When to Use This Hook
+
+Use `useCSSVariable` when you need to:
+
+* Access theme colors for third-party libraries (e.g., chart libraries, map markers)
+* Perform calculations with design tokens (e.g., dynamic positioning based on spacing values)
+* Configure native modules that require color/size values
+* Pass theme values to JavaScript animation libraries
+* Access design tokens for runtime logic
+
+<Tip>
+  **Prefer these alternatives when possible:**
+
+  * For styling components: Use the `className` prop directly
+  * For multiple style properties: Use [`useResolveClassNames`](/api/use-resolve-class-names)
+  * For third-party components: Wrap them with [`withUniwind`](/api/with-uniwind)
+</Tip>
+
+## Usage
+
+### Basic Example
+
+```tsx  theme={null}
+import { useCSSVariable } from 'uniwind'
+import { View, Text } from 'react-native'
+
+export const MyComponent = () => {
+  const primaryColor = useCSSVariable('--color-primary')
+  const spacing = useCSSVariable('--spacing-4')
+
+  return (
+    <View className="p-4">
+      <Text>Primary color: {primaryColor}</Text>
+      <Text>Spacing: {spacing}</Text>
+    </View>
+  )
+}
+```
+
+### With Chart Libraries
+
+```tsx  theme={null}
+import { useCSSVariable } from 'uniwind'
+import { LineChart } from 'react-native-chart-kit'
+
+export const ThemedChart = () => {
+  const primaryColor = useCSSVariable('--color-primary')
+  const backgroundColor = useCSSVariable('--color-background')
+  const textColor = useCSSVariable('--color-foreground')
+
+  return (
+    <LineChart
+      data={chartData}
+      width={300}
+      height={200}
+      chartConfig={{
+        backgroundColor: backgroundColor,
+        backgroundGradientFrom: backgroundColor,
+        backgroundGradientTo: backgroundColor,
+        color: () => primaryColor,
+        labelColor: () => textColor,
+      }}
+    />
+  )
+}
+```
+
+### Accessing Custom Theme Variables
+
+```tsx  theme={null}
+import { useCSSVariable } from 'uniwind'
+import MapView, { Marker } from 'react-native-maps'
+
+export const ThemedMap = () => {
+  const markerColor = useCSSVariable('--color-accent')
+
+  return (
+    <MapView>
+      <Marker
+        coordinate={{ latitude: 37.78, longitude: -122.4 }}
+        pinColor={markerColor}
+      />
+    </MapView>
+  )
+}
+```
+
+## Making Variables Available
+
+For the hook to resolve a CSS variable, the variable must be either:
+
+### Option 1: Used in a className (Recommended)
+
+Use the variable at least once anywhere in your app's `className` props:
+
+```tsx  theme={null}
+// Somewhere in your app
+<View className="bg-primary" />
+```
+
+This makes `--color-primary` available to `useCSSVariable`:
+
+```tsx  theme={null}
+const primaryColor = useCSSVariable('--color-primary') // ✅ Works
+```
+
+### Option 2: Define in Static Theme
+
+If you have CSS variables that are never used in classNames but need to be accessed in JavaScript, define them in a static theme block in your `global.css`:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme static {
+  --color-al-teal-10: #eaeeee;
+  --color-al-teal-25: #cad4d5;
+  --color-al-teal-75: #607d81;
+  --color-al-teal-100: #2b5257;
+
+  --color-custom-teal-10: #eaeeee;
+  --color-custom-teal-25: #cad4d5;
+  --color-custom-teal-75: #607d81;
+  --color-custom-teal-100: #2b5257;
+
+  --chart-line-width: 2;
+  --chart-dot-radius: 4;
+}
+```
+
+Then access them anywhere:
+
+```tsx  theme={null}
+const tealColor = useCSSVariable('--color-al-teal-75') // ✅ Works
+const lineWidth = useCSSVariable('--chart-line-width') // ✅ Works
+```
+
+<Info>
+  Variables defined in `@theme static` are always available, even if they're never used in any `className`.
+</Info>
+
+## Development Warnings
+
+In development mode, Uniwind will warn you if you try to access a variable that hasn't been made available:
+
+```tsx  theme={null}
+const unknownColor = useCSSVariable('--color-unknown')
+// Console warning:
+// "We couldn't find your variable --color-unknown. Make sure it's used
+// at least once in your className, or define it in a static theme as
+// described in the docs."
+```
+
+<Tip>
+  If you see this warning, either use the variable in a `className` somewhere or add it to `@theme static` in your `global.css`.
+</Tip>
+
+## API Reference
+
+### Arguments
+
+<ParamField path="name" type="string" required>
+  The name of the CSS variable to retrieve, including the `--` prefix (e.g., `--color-primary`, `--spacing-4`).
+</ParamField>
+
+### Return Value
+
+<ParamField path="value" type="string | number | undefined">
+  The resolved value of the CSS variable. The type depends on the platform:
+
+  * **Web**: Always returns a `string` (e.g., `"16px"`, `"#ff0000"`)
+  * **Native**: Returns `string` or `number` depending on the value type (e.g., `16`, `"#ff0000"`)
+  * **Undefined**: If the variable cannot be found
+</ParamField>
+
+## Platform Differences
+
+<Accordion title="Web Platform" icon="globe">
+  On web, `useCSSVariable` uses `getComputedStyle()` to retrieve values from the DOM. All values are returned as strings:
+
+  ```tsx  theme={null}
+  const color = useCSSVariable('--color-primary')
+  // Web: "#3b82f6" (string)
+  ```
+</Accordion>
+
+<Accordion title="Native Platform" icon="mobile">
+  On React Native, `useCSSVariable` accesses the internal variable store. Numeric values are returned as numbers:
+
+  ```tsx  theme={null}
+  const spacing = useCSSVariable('--spacing-4')
+  // Native: 16 (number)
+
+  const color = useCSSVariable('--color-primary')
+  // Native: "#3b82f6" (string)
+  ```
+</Accordion>
+
+## Performance Considerations
+
+<Info>
+  The `useCSSVariable` hook is reactive and will automatically update when the theme changes, ensuring your values stay in sync with the active theme.
+</Info>
+
+Keep in mind:
+
+* The hook subscribes to theme changes, so components will re-render when themes switch
+* For static values that don't need theme reactivity, consider storing them outside the component
+* Accessing many variables in a single component is fine, but consider grouping related logic
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="useResolveClassNames" icon="code" href="/api/use-resolve-class-names">
+    Convert full className strings to style objects
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Learn how to define CSS variables in your theme
+  </Card>
+
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Understand how themes work in Uniwind
+  </Card>
+
+  <Card title="withUniwind" icon="layer-group" href="/api/with-uniwind">
+    Wrap third-party components to add className support
+  </Card>
+</CardGroup>
+
+
+# useResolveClassNames
+Source: https://docs.uniwind.dev/api/use-resolve-class-names
+
+Convert Tailwind class names to React Native style objects at runtime
+
+## Overview
+
+The `useResolveClassNames` hook converts Tailwind class names into valid React Native `style` objects. This is useful when working with components or libraries that don't support the `className` prop directly, such as `react-navigation` theme configuration or third-party components that can't be wrapped in `withUniwind`.
+
+<Warning>
+  This hook should be used rarely. For most use cases, prefer using the `className` prop on Uniwind-wrapped components.
+</Warning>
+
+## When to Use This Hook
+
+Use `useResolveClassNames` when you need to:
+
+* Configure libraries that accept style objects (e.g., `react-navigation` themes)
+* Pass styles to third-party components that only accept `style` props (and can't be wrapped in `withUniwind`)
+* Generate style objects dynamically for special use cases
+* Work with legacy code that requires style objects
+
+<Tip>
+  **Prefer these alternatives when possible:**
+
+  * For React Native components: Use the `className` prop directly. See [Components](/components/activity-indicator).
+  * For third-party components: Wrap them with [`withUniwind`](/api/with-uniwind) to add `className` support.
+</Tip>
+
+## Usage
+
+### Basic Example
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+import { View } from 'react-native'
+
+export const MyComponent = () => {
+  const styles = useResolveClassNames('bg-red-500 p-4 rounded-lg')
+
+  return <View style={styles}>Content</View>
+}
+```
+
+### With react-navigation
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+import { NavigationContainer } from '@react-navigation/native'
+
+export const App = () => {
+  const headerStyle = useResolveClassNames('bg-blue-500')
+  const cardStyle = useResolveClassNames('bg-white dark:bg-gray-900')
+
+  const theme = {
+    colors: {
+      background: 'transparent',
+    },
+    // Use resolved styles for navigation theme
+    dark: false,
+  }
+
+  return (
+    <NavigationContainer theme={theme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: headerStyle,
+          cardStyle: cardStyle,
+        }}
+      >
+        {/* Your screens */}
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
+}
+```
+
+### Dynamic Class Names
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+
+export const DynamicCard = ({ variant }: { variant: 'primary' | 'secondary' }) => {
+  const cardClasses = variant === 'primary'
+    ? 'bg-blue-500 text-white'
+    : 'bg-gray-200 text-black'
+
+  const styles = useResolveClassNames(cardClasses)
+
+  return <View style={styles}>Card content</View>
+}
+```
+
+### Combining Multiple Style Objects
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+import { View, StyleSheet } from 'react-native'
+
+export const CombinedStyles = () => {
+  const tailwindStyles = useResolveClassNames('p-4 rounded-lg')
+
+  const customStyles = StyleSheet.create({
+    shadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+  })
+
+  return <View style={[tailwindStyles, customStyles.shadow]}>Content</View>
+}
+```
+
+## API Reference
+
+### Arguments
+
+<ParamField path="classNames" type="string" required>
+  A string containing Tailwind class names to be resolved at runtime. Supports all standard Tailwind utilities and theme-based variants (e.g., `dark:bg-gray-900`).
+</ParamField>
+
+### Return Value
+
+<ParamField path="styles" type="object">
+  A valid React Native `style` object containing the resolved styles. This object can be passed directly to any component's `style` prop or combined with other style objects.
+</ParamField>
+
+## Performance Considerations
+
+<Info>
+  The `useResolveClassNames` hook is reactive and will automatically update when the theme changes, ensuring your styles stay in sync with the active theme.
+</Info>
+
+While `useResolveClassNames` is optimized for performance, be aware that:
+
+* It processes class names at runtime, which is slightly less performant than compile-time resolution
+* For frequently re-rendered components, consider memoizing the result if the class names don't change
+* Using the `className` prop directly is more performant when possible
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="withUniwind" icon="layer-group" href="/api/with-uniwind">
+    Wrap third-party components to add className support
+  </Card>
+
+  <Card title="Components" icon="react" href="/components/activity-indicator">
+    Learn about Uniwind-wrapped React Native components
+  </Card>
+</CardGroup>
+
+<CardGroup cols={2}>
+  <Card title="useCSSVariable" icon="code" href="/api/use-css-variable">
+    Access individual CSS variable values in JavaScript
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Define CSS variables in your theme
+  </Card>
+</CardGroup>
+
+
+# useUniwind
+Source: https://docs.uniwind.dev/api/use-uniwind
+
+React hook for accessing the current theme and reacting to theme changes
+
+## Overview
+
+The `useUniwind` hook provides access to the current theme name and adaptive theme status. It automatically triggers a re-render when the theme changes or when adaptive themes are toggled. This is useful when you need to conditionally render components or apply logic based on the active theme.
+
+## Usage
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+
+export const MyComponent = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  return (
+    <View className="p-4">
+      <Text>Current theme: {theme}</Text>
+      <Text>Adaptive themes: {hasAdaptiveThemes ? 'enabled' : 'disabled'}</Text>
+    </View>
+  )
+}
+```
+
+## When to Use This Hook
+
+The `useUniwind` hook is ideal for scenarios where you need to:
+
+* Display the current theme name in your UI
+* Check if adaptive themes (system theme) are enabled
+* Conditionally render different components based on the active theme
+* Execute side effects when the theme changes
+* Access theme information for logging or analytics
+
+<Tip>
+  For most styling use cases, you don't need this hook. Use theme-based className variants instead (e.g., `dark:bg-gray-900`).
+</Tip>
+
+## Return Values
+
+<ParamField path="theme" type="string">
+  The name of the currently active theme (e.g., `"light"`, `"dark"`, `"system"`, or any custom theme name you've defined).
+</ParamField>
+
+<ParamField path="hasAdaptiveThemes" type="boolean">
+  Indicates whether adaptive themes are currently enabled. When `true`, the app automatically follows the device's system color scheme. When `false`, the app uses a fixed theme.
+</ParamField>
+
+## Examples
+
+### Conditional Rendering Based on Theme
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+import { View, Text } from 'react-native'
+
+export const ThemedIcon = () => {
+  const { theme } = useUniwind()
+
+  return (
+    <View className="p-4">
+      {theme === 'dark' ? (
+        <MoonIcon className="text-white" />
+      ) : (
+        <SunIcon className="text-yellow-500" />
+      )}
+    </View>
+  )
+}
+```
+
+### Using Theme in Side Effects
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+import { useEffect } from 'react'
+
+export const ThemeLogger = () => {
+  const { theme } = useUniwind()
+
+  useEffect(() => {
+    console.log('Theme changed to:', theme)
+    // You could also:
+    // - Update analytics
+    // - Store preference in MMKV storage
+    // - Trigger additional theme-related logic
+  }, [theme])
+
+  return null
+}
+```
+
+### Displaying Current Theme
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+import { View, Text } from 'react-native'
+
+export const ThemeIndicator = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  return (
+    <View className="bg-gray-100 dark:bg-gray-800 p-2 rounded">
+      <Text className="text-sm text-gray-600 dark:text-gray-300">
+        Active theme: {theme}
+      </Text>
+      <Text className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        {hasAdaptiveThemes ? 'Following system theme' : 'Fixed theme'}
+      </Text>
+    </View>
+  )
+}
+```
+
+### Reacting to Adaptive Theme Changes
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+import { useEffect } from 'react'
+
+export const AdaptiveThemeMonitor = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  useEffect(() => {
+    if (hasAdaptiveThemes) {
+      console.log('System theme changed to:', theme)
+      // Handle system theme change
+      // - Update status bar style
+      // - Log analytics event
+      // - Sync with backend preferences
+    }
+  }, [theme, hasAdaptiveThemes])
+
+  return null
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Learn how to set up and configure themes in Uniwind
+  </Card>
+
+  <Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+    Create and manage custom theme configurations
+  </Card>
+</CardGroup>
+
+
+# withUniwind
+Source: https://docs.uniwind.dev/api/with-uniwind
+
+Add `className` support to any React Native component
+
+## Overview
+
+The `withUniwind` higher-order component (HOC) wraps any React Native component to add `className` prop support. This is essential for using third-party components with Uniwind's Tailwind-based styling system.
+
+## Why Use withUniwind?
+
+Many popular React Native libraries export components that don't natively support the `className` prop. Instead, they accept the traditional `style` prop. The `withUniwind` wrapper bridges this gap, allowing you to use Tailwind classes with any component.
+
+<Tip>
+  **Some third-party components work out of the box!** Libraries like React Native Reanimated that are built on top of React Native's core components (View, Text, etc.) automatically support `className` without wrapping. You only need `withUniwind` when the underlying implementation uses custom native components or doesn't forward the `style` prop properly.
+</Tip>
+
+### Problem
+
+```tsx  theme={null}
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// ❌ This won't work - SafeAreaView is a third-party component
+<SafeAreaView className="flex-1 bg-background">
+  {/* content */}
+</SafeAreaView>
+```
+
+### Solution
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const StyledSafeAreaView = withUniwind(SafeAreaView);
+
+// ✅ This works - we've wrapped the component with withUniwind
+<StyledSafeAreaView className="flex-1 bg-background">
+  {/* content */}
+</StyledSafeAreaView>
+```
+
+## Automatic Prop Mapping
+
+`withUniwind` automatically maps props based on their names. Any prop containing `style` or `color` in its name is automatically mapped.
+
+<Info>
+  **No manual mapping needed!** The `style` prop is automatically mapped to `className`, and color-related props get their own `*ClassName` variants.
+</Info>
+
+### Automatic Mappings
+
+Here are some examples of how props are automatically mapped:
+
+| Original Prop     | Mapped ClassName Prop      | Example Usage                                              |
+| ----------------- | -------------------------- | ---------------------------------------------------------- |
+| `style`           | `className`                | `<Component className="p-4" />`                            |
+| `color`           | `colorClassName`           | `<Component colorClassName="accent-red-500" />`            |
+| `backgroundColor` | `backgroundColorClassName` | `<Component backgroundColorClassName="accent-blue-500" />` |
+| `borderColor`     | `borderColorClassName`     | `<Component borderColorClassName="accent-gray-300" />`     |
+| `tintColor`       | `tintColorClassName`       | `<Component tintColorClassName="accent-green-500" />`      |
+
+### Example: Using Auto-Mapped Color Props
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { ActivityIndicator } from 'react-native-activity-indicator'
+
+const StyledActivityIndicator = withUniwind(ActivityIndicator)
+
+// Use colorClassName instead of the color prop
+<StyledActivityIndicator
+  colorClassName="accent-blue-500 dark:accent-blue-300"
+  size="large"
+/>
+```
+
+## Custom Prop Mapping
+
+For advanced use cases, you can define custom mappings to map specific props to style properties. This is particularly useful for SVG components or components with non-standard prop names.
+
+### Mapping with Style Properties
+
+Map a custom className prop to a specific CSS property:
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { Path } from 'react-native-svg'
+
+export const StyledPath = withUniwind(Path, {
+  stroke: {
+    fromClassName: 'strokeClassName',
+    styleProperty: 'accentColor',
+  },
+})
+
+// Usage: strokeClassName maps to stroke, using accentColor from the class
+<StyledPath strokeClassName="accent-red-500 dark:accent-blue-100" />
+```
+
+In this example:
+
+* `strokeClassName` is the new prop you'll use in JSX
+* `stroke` is the original component prop being mapped
+* `accentColor` is the CSS property to extract from the className
+
+### Mapping Background Colors
+
+You can map any style property, including background colors:
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { Path } from 'react-native-svg'
+
+export const StyledPath = withUniwind(Path, {
+  stroke: {
+    fromClassName: 'strokeClassName',
+    styleProperty: 'backgroundColor',
+  },
+})
+
+// Usage: strokeClassName maps to stroke, using backgroundColor
+<StyledPath strokeClassName="bg-red-500 dark:bg-blue-500" />
+```
+
+### Mapping Entire Style Objects
+
+If you omit the `styleProperty`, `withUniwind` will map the entire resolved style object instead of a single property:
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { CustomComponent } from 'some-library'
+
+export const StyledCustomComponent = withUniwind(CustomComponent, {
+  customProp: {
+    fromClassName: 'customClassName',
+    // No styleProperty - maps the entire style object
+  },
+})
+
+// Usage: All styles from customClassName are applied to customProp
+<StyledCustomComponent customClassName="p-4 bg-red-500 rounded-lg" />
+```
+
+### Third-Party UI Components
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { Button } from 'react-native-paper'
+
+const StyledButton = withUniwind(Button)
+
+export const MyButton = () => (
+  <StyledButton
+    className="m-4"
+    backgroundColorClassName="accent-blue-500"
+    mode="contained"
+  >
+    Press me
+  </StyledButton>
+)
+```
+
+## API Reference
+
+### Function Signature
+
+```tsx  theme={null}
+withUniwind<T>(Component: T, mappings?: PropMappings): T
+```
+
+### Parameters
+
+<ParamField path="Component" type="React.ComponentType" required>
+  The React component to wrap with className support.
+</ParamField>
+
+<ParamField path="mappings" type="PropMappings">
+  Optional custom prop mappings. Each mapping defines how to convert a className prop to a component prop.
+
+  **Mapping structure:**
+
+  ```tsx  theme={null}
+  {
+    [targetProp: string]: {
+      fromClassName: string,      // The className prop name to create
+      styleProperty?: string       // Optional CSS property to extract (omit to use entire style)
+    }
+  }
+  ```
+</ParamField>
+
+### Return Value
+
+<ParamField path="StyledComponent" type="React.ComponentType">
+  A wrapped component that accepts `className` and auto-generated `*ClassName` props, in addition to all original component props.
+</ParamField>
+
+## Best Practices
+
+<Tip>
+  **Create reusable styled components:** Define your wrapped components in a separate file and export them for reuse throughout your app.
+</Tip>
+
+```tsx  theme={null}
+// components/styled.ts
+import { withUniwind } from 'uniwind'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
+
+export const StyledSafeAreaView = withUniwind(SafeAreaView)
+export const StyledKeyboardAwareScrollView = withUniwind(KeyboardAwareScrollView)
+```
+
+<Warning>
+  **Performance consideration:** Wrap components at the module level (outside your component functions) to avoid recreating the wrapper on every render.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="useResolveClassNames" icon="code" href="/api/use-resolve-class-names">
+    Convert classNames to style objects at runtime
+  </Card>
+
+  <Card title="Third-Party Components" icon="box" href="/components/other-components">
+    Learn about styling third-party component libraries
+  </Card>
+</CardGroup>
+
+
+# Supported classNames
+Source: https://docs.uniwind.dev/class-names
+
+Comprehensive guide to Tailwind class names supported in Uniwind
+
+## Overview
+
+<Warning>
+  React Native uses the Yoga layout engine, not browser CSS. Key differences to be aware of:
+
+  * **No CSS cascade/inheritance**: Styles don't inherit from parent components
+  * **Flexbox by default**: All views use `flexbox` with `flexDirection: 'column'` by default
+  * **Limited CSS properties**: Only a subset of CSS is supported (no floats, grid, pseudo-elements, etc.)
+  * **Different units**: No `em`, `rem`, or percentage-based units for most properties
+</Warning>
+
+Uniwind supports the vast majority of Tailwind CSS utility classes out of the box. This page documents special cases, platform-specific classes, and differences between the free and pro versions.
+
+<Info>
+  **Most Tailwind classes just work!** If a class name isn't listed below as unsupported or with special behavior, you can assume Uniwind fully supports it.
+</Info>
+
+<Tip>
+  Found a class name that doesn't work as expected? Please [open an issue on GitHub](https://github.com/Unistyles-OSS/uniwind/issues) to help us improve this documentation.
+</Tip>
+
+## Standard Tailwind Classes
+
+All standard Tailwind utility classes are supported, including:
+
+* **Layout**: `container`, `flex`, `block`, `hidden`, etc.
+* **Spacing**: `p-*`, `m-*`, `space-*`, `gap-*`
+* **Sizing**: `w-*`, `h-*`, `min-w-*`, `max-w-*`, etc.
+* **Typography**: `text-*`, `font-*`, `leading-*`, `tracking-*`, etc.
+* **Colors**: `bg-*`, `text-*`, `border-*`, `shadow-*`, etc.
+* **Borders**: `border-*`, `rounded-*`, `ring-*`
+* **Effects**: `shadow-*`, `opacity-*`
+* **Flexbox**: `justify-*`, `items-*`, `content-*`, etc.
+* **Positioning**: `absolute`, `relative`, `top-*`, `left-*`, etc.
+* **Transforms**: `translate-*`, `rotate-*`, `scale-*`, `skew-*`
+* **Pseudo-elements**: `focus:`, `active:`, `disabled:`
+
+## Platform-Specific Variants
+
+Uniwind extends Tailwind with platform-specific variants for React Native:
+
+```tsx  theme={null}
+// Style only on iOS
+<View className="ios:bg-blue-500" />
+
+// Style only on Android
+<View className="android:bg-green-500" />
+
+// Style only on Web
+<View className="web:bg-red-500" />
+```
+
+Learn more about platform variants in the [Platform Selectors](/api/platform-select) documentation.
+
+## Unsupported Classes
+
+| Class Name                                                     | Free Version | Pro Version | Description                                                                                                                                                                        |
+| -------------------------------------------------------------- | ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **p-safe**, **pt-safe**, **pb-safe**, **pl-safe**, **pr-safe** | ❌            | ✅           | Applies safe area padding. The free version doesn't depend on `react-native-safe-area-context`. The pro version injects safe area values directly from C++ for better performance. |
+| **m-safe**, **mt-safe**, **mb-safe**, **ml-safe**, **mr-safe** | ❌            | ✅           | Applies safe area margins. Similar to padding variants, pro version provides optimized C++ implementation.                                                                         |
+| **grid**                                                       | ❌            | ❌           | Not supported by Yoga (React Native)                                                                                                                                               |
+
+Some Tailwind classes are not applicable to React Native and are not supported:
+
+<Warning>
+  The following web-specific classes have no React Native equivalent and will be ignored:
+</Warning>
+
+* **Pseudo-classes**: `hover:*`, `visited:*` (use Pressable states instead)
+* **Pseudo-elements**: `before:*`, `after:*`, `placeholder:*`
+* **Media queries**: `print:*`, `screen:*`
+* **Float & Clear**: `float-*`, `clear-*`
+* **Break**: `break-before-*`, `break-after-*`, `break-inside-*`
+* **Columns**: `columns-*`, `break-*`
+* **Aspect Ratio**: Some variants may have limited support
+
+<Tip>
+  For interactive states like hover and press, use the `Pressable` component's built-in state management and apply classes conditionally.
+</Tip>
+
+## Need More Information?
+
+This page is continuously updated as we expand Uniwind's capabilities.
+
+<Card title="Request Documentation Updates" icon="message" href="https://github.com/Unistyles-OSS/uniwind/issues">
+  Help us improve this documentation by reporting missing or incorrect information.
+</Card>
+
+
+# ActivityIndicator
+Source: https://docs.uniwind.dev/components/activity-indicator
+
+Learn how to use ActivityIndicator with Uniwind className props
+
+## Overview
+
+The `ActivityIndicator` component displays a circular loading indicator. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="colorClassName" type="string">
+  Maps to the `color` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { ActivityIndicator, View } from 'react-native'
+
+<ActivityIndicator
+    className="m-4"
+    size="large"
+    colorClassName="accent-blue-500 dark:accent-blue-400"
+/>
+```
+
+
+# Button
+Source: https://docs.uniwind.dev/components/button
+
+Learn how to use Button with Uniwind className props
+
+## Overview
+
+The `Button` component is a basic button with a simple platform-specific appearance. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="colorClassName" type="string">
+  Maps to the `color` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Button } from 'react-native'
+
+<Button
+  title="Press me"
+  colorClassName="accent-blue-500 dark:accent-blue-400"
+  onPress={() => console.log('Pressed')}
+/>
+```
+
+
+# FlatList
+Source: https://docs.uniwind.dev/components/flat-list
+
+Learn how to use FlatList with Uniwind className props
+
+## Overview
+
+The `FlatList` component is a performant interface for rendering long lists. Uniwind provides className prop support for styling various parts of this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="columnWrapperClassName" type="string">
+  Maps to the `columnWrapperStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="contentContainerClassName" type="string">
+  Maps to the `contentContainerStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="ListFooterComponentClassName" type="string">
+  Maps to the `ListFooterComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="ListHeaderComponentClassName" type="string">
+  Maps to the `ListHeaderComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="endFillColorClassName" type="string">
+  Maps to the `endFillColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { FlatList, Text } from 'react-native'
+
+<FlatList
+  data={items}
+  renderItem={({ item }) => <Text>{item.name}</Text>}
+  className="flex-1"
+  contentContainerClassName="p-4 gap-2"
+  endFillColorClassName="accent-gray-100 dark:accent-gray-900"
+/>
+```
+
+
+# Image
+Source: https://docs.uniwind.dev/components/image
+
+Learn how to use Image with Uniwind className props
+
+## Overview
+
+The `Image` component displays images from various sources. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="colorClassName" type="string">
+  Maps to the `color` prop (tint color for template images). Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Image } from 'react-native'
+
+<Image
+  source={{ uri: 'https://example.com/image.png' }}
+  className="w-24 h-24 rounded-lg"
+  colorClassName="accent-blue-500 dark:accent-blue-400"
+/>
+```
+
+
+# ImageBackground
+Source: https://docs.uniwind.dev/components/image-background
+
+Learn how to use ImageBackground with Uniwind className props
+
+## Overview
+
+The `ImageBackground` component displays an image as a background with children rendered on top. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="imageClassName" type="string">
+  Maps to the `imageStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="tintColorClassName" type="string">
+  Maps to the `tintColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { ImageBackground, Text } from 'react-native'
+
+<ImageBackground
+  source={{ uri: 'https://example.com/bg.jpg' }}
+  className="flex-1 justify-center items-center"
+  imageClassName="opacity-50"
+  tintColorClassName="accent-blue-500 dark:accent-blue-700"
+>
+  <Text className="text-white text-2xl font-bold">
+    Content here
+  </Text>
+</ImageBackground>
+```
+
+
+# InputAccessoryView
+Source: https://docs.uniwind.dev/components/input-accessory-view
+
+Learn how to use InputAccessoryView with Uniwind className props
+
+## Overview
+
+The `InputAccessoryView` component (iOS only) displays a custom view above the keyboard. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="backgroundColorClassName" type="string">
+  Maps to the `backgroundColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { InputAccessoryView, Button } from 'react-native'
+
+<InputAccessoryView
+  nativeID="uniqueID"
+  className="p-4 border-t border-gray-300"
+  backgroundColorClassName="accent-white dark:accent-gray-800"
+>
+  <Button title="Done" onPress={() => {}} />
+</InputAccessoryView>
+```
+
+
+# KeyboardAvoidingView
+Source: https://docs.uniwind.dev/components/keyboard-avoiding-view
+
+Learn how to use KeyboardAvoidingView with Uniwind className props
+
+## Overview
+
+The `KeyboardAvoidingView` component automatically adjusts its height, position, or padding based on keyboard height to prevent content from being hidden. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="contentContainerClassName" type="string">
+  Maps to the `contentContainerStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { KeyboardAvoidingView, TextInput } from 'react-native'
+
+<KeyboardAvoidingView
+  behavior="padding"
+  className="flex-1 bg-white"
+  contentContainerClassName="p-4 justify-end"
+>
+  <TextInput
+    placeholder="Type here..."
+    className="border border-gray-300 rounded p-2"
+  />
+</KeyboardAvoidingView>
+```
+
+
+# Modal
+Source: https://docs.uniwind.dev/components/modal
+
+Learn how to use Modal with Uniwind className props
+
+## Overview
+
+The `Modal` component presents content above the rest of your app. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="backdropColorClassName" type="string">
+  Maps to the `backdropColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Modal, View, Text, Button } from 'react-native'
+
+<Modal
+  visible={isVisible}
+  transparent
+  animationType="slide"
+  backdropColorClassName="accent-black/50"
+>
+  <View className="flex-1 justify-center items-center">
+    <View className="bg-white rounded-lg p-6 w-4/5">
+      <Text className="text-xl font-bold mb-4">Modal Title</Text>
+      <Button title="Close" onPress={() => setIsVisible(false)} />
+    </View>
+  </View>
+</Modal>
+```
+
+
+# Third-Party Components
+Source: https://docs.uniwind.dev/components/other-components
+
+Learn how to use Uniwind with third-party component libraries
+
+## Overview
+
+Uniwind provides two powerful tools for styling third-party components that don't natively support `className` props.
+
+## Option 1: withUniwind (Recommended)
+
+Wrap third-party components to add `className` support using `withUniwind`:
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { SafeAreaView } from 'react-native-safe-area-context'
+
+const StyledSafeAreaView = withUniwind(SafeAreaView)
+
+// Usage
+<StyledSafeAreaView className="flex-1 bg-background p-4">
+  {/* Your content */}
+</StyledSafeAreaView>
+```
+
+<Info>
+  **Best for:** Components you use frequently throughout your app. Wrap them once, use them everywhere with `className` support.
+</Info>
+
+<Card title="withUniwind Documentation" icon="layer-group" href="/api/with-uniwind">
+  Learn how to wrap components and map custom props
+</Card>
+
+## Option 2: useResolveClassNames
+
+Convert className strings to style objects at runtime:
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+import { CustomComponent } from 'some-library'
+
+export const MyComponent = () => {
+  const styles = useResolveClassNames('bg-blue-500 p-4 rounded-lg')
+
+  return <CustomComponent style={styles} />
+}
+```
+
+<Info>
+  **Best for:** One-off usage or components with complex style requirements that can't be easily wrapped.
+</Info>
+
+<Card title="useResolveClassNames Documentation" icon="code" href="/api/use-resolve-class-names">
+  Learn how to convert classNames to style objects
+</Card>
+
+## Quick Comparison
+
+| Feature         | withUniwind         | useResolveClassNames |
+| --------------- | ------------------- | -------------------- |
+| **Setup**       | Once per component  | Per usage            |
+| **Performance** | Optimized           | Slightly slower      |
+| **Best for**    | Reusable components | One-off cases        |
+| **Syntax**      | `className="..."`   | `style={...}`        |
+
+## Example: react-native-paper
+
+```tsx  theme={null}
+import { withUniwind } from 'uniwind'
+import { Button } from 'react-native-paper'
+
+// Wrap once
+const StyledButton = withUniwind(Button)
+
+// Use everywhere
+<StyledButton
+  className="m-4"
+  mode="contained"
+>
+  Press me
+</StyledButton>
+```
+
+## Example: react-navigation
+
+```tsx  theme={null}
+import { useResolveClassNames } from 'uniwind'
+import { NavigationContainer } from '@react-navigation/native'
+
+export const App = () => {
+  const cardStyle = useResolveClassNames('bg-white dark:bg-gray-900')
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ cardStyle }}>
+        {/* Your screens */}
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
+}
+```
+
+<Tip>
+  For most third-party components, `withUniwind` is the recommended approach as it provides better performance and cleaner syntax.
+</Tip>
+
+
+# Pressable
+Source: https://docs.uniwind.dev/components/pressable
+
+Learn how to use Pressable with Uniwind className props
+
+## Overview
+
+The `Pressable` component detects press interactions on any child component. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Pressable, Text } from 'react-native'
+
+<Pressable
+  className="bg-blue-500 px-6 py-3 rounded-lg active:opacity-80"
+  onPress={() => console.log('Pressed')}
+>
+  <Text className="text-white text-center font-semibold">Press me</Text>
+</Pressable>
+```
+
+
+# RefreshControl
+Source: https://docs.uniwind.dev/components/refresh-control
+
+Learn how to use RefreshControl with Uniwind className props
+
+## Overview
+
+The `RefreshControl` component provides pull-to-refresh functionality for ScrollView and FlatList. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="colorClassName" type="string">
+  Maps to the `color` prop (Android only). Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="tintColorClassName" type="string">
+  Maps to the `tintColor` prop (iOS only). Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="titleColorClassName" type="string">
+  Maps to the `titleColor` prop (iOS only). Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="progressBackgroundColorClassName" type="string">
+  Maps to the `progressBackgroundColor` prop (Android only). Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { ScrollView, RefreshControl } from 'react-native'
+
+<ScrollView
+  refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColorClassName="accent-blue-500"
+      colorClassName="accent-blue-500"
+      progressBackgroundColorClassName="accent-white dark:accent-gray-800"
+    />
+  }
+>
+  {/* Content */}
+</ScrollView>
+```
+
+
+# SafeAreaView
+Source: https://docs.uniwind.dev/components/safe-area-view
+
+Learn how to use SafeAreaView with Uniwind className props
+
+## Overview
+
+The `SafeAreaView` component automatically applies padding to avoid device safe areas (notches, status bars, home indicators). Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+
+# ScrollView
+Source: https://docs.uniwind.dev/components/scroll-view
+
+Learn how to use ScrollView with Uniwind className props
+
+## Overview
+
+The `ScrollView` component provides a scrollable container. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `endFillColor`): Use the `accent-` prefix (e.g., `endFillColorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="contentContainerClassName" type="string">
+  Maps to the `contentContainerStyle` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="endFillColorClassName" type="string">
+  Maps to the `endFillColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { ScrollView, Text } from 'react-native'
+
+<ScrollView
+  className="flex-1 bg-background"
+  contentContainerClassName="p-4 gap-2"
+  endFillColorClassName="accent-gray-100"
+>
+  <Text>Scrollable content</Text>
+</ScrollView>
+```
+
+
+# SectionList
+Source: https://docs.uniwind.dev/components/section-list
+
+Learn how to use SectionList with Uniwind className props
+
+## Overview
+
+The `SectionList` component is a performant interface for rendering sectioned lists. Uniwind provides className prop support for styling various parts of this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="contentContainerClassName" type="string">
+  Maps to the `contentContainerStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="ListFooterComponentClassName" type="string">
+  Maps to the `ListFooterComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="ListHeaderComponentClassName" type="string">
+  Maps to the `ListHeaderComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="endFillColorClassName" type="string">
+  Maps to the `endFillColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { SectionList, Text } from 'react-native'
+
+<SectionList
+  sections={[
+    { title: 'Section 1', data: ['Item 1', 'Item 2'] },
+    { title: 'Section 2', data: ['Item 3', 'Item 4'] }
+  ]}
+  renderItem={({ item }) => <Text className="p-4">{item}</Text>}
+  renderSectionHeader={({ section }) => (
+    <Text className="bg-gray-100 p-2 font-bold">{section.title}</Text>
+  )}
+  className="flex-1"
+  contentContainerClassName="p-4"
+  endFillColorClassName="accent-gray-100 dark:accent-gray-900"
+/>
+```
+
+
+# Switch
+Source: https://docs.uniwind.dev/components/switch
+
+Learn how to use Switch with Uniwind className props
+
+## Overview
+
+The `Switch` component renders a boolean input toggle. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="thumbColorClassName" type="string">
+  Maps to the `thumbColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="trackColorOnClassName" type="string">
+  Maps to the `trackColor.true` prop (when switch is on). Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="trackColorOffClassName" type="string">
+  Maps to the `trackColor.false` prop (when switch is off). Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="ios_backgroundColorClassName" type="string">
+  Maps to the `ios_backgroundColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Switch, View } from 'react-native'
+
+<View className="p-4">
+  <Switch
+    value={isEnabled}
+    onValueChange={setIsEnabled}
+    className="m-2"
+    thumbColorClassName="accent-white"
+    trackColorOnClassName="accent-blue-500 dark:accent-blue-400"
+    trackColorOffClassName="accent-gray-300 dark:accent-gray-700"
+    ios_backgroundColorClassName="accent-gray-300"
+  />
+</View>
+```
+
+
+# Text
+Source: https://docs.uniwind.dev/components/text
+
+Learn how to use Text with Uniwind className props
+
+## Overview
+
+The `Text` component displays text content. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `selectionColor`): Use the `accent-` prefix (e.g., `selectionColorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="selectionColorClassName" type="string">
+  Maps to the `selectionColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { Text } from 'react-native'
+
+<Text
+  className="text-lg font-bold text-gray-900 dark:text-white"
+  selectionColorClassName="accent-blue-500"
+>
+  Hello World
+</Text>
+```
+
+
+# TextInput
+Source: https://docs.uniwind.dev/components/text-input
+
+Learn how to use TextInput with Uniwind className props
+
+## Overview
+
+The `TextInput` component allows users to enter text. Uniwind provides className prop support for styling this component with various color customization options.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="cursorColorClassName" type="string">
+  Maps to the `cursorColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="selectionColorClassName" type="string">
+  Maps to the `selectionColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="placeholderTextColorClassName" type="string">
+  Maps to the `placeholderTextColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="selectionHandleColorClassName" type="string">
+  Maps to the `selectionHandleColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="underlineColorAndroidClassName" type="string">
+  Maps to the `underlineColorAndroid` prop (Android only). Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { TextInput, View } from 'react-native'
+
+<View className="p-4">
+  <TextInput
+    placeholder="Enter text..."
+    className="border border-gray-300 rounded-lg p-3 text-base"
+    cursorColorClassName="accent-blue-500"
+    selectionColorClassName="accent-blue-200"
+    placeholderTextColorClassName="accent-gray-400 dark:accent-gray-500"
+    underlineColorAndroidClassName="accent-transparent"
+  />
+</View>
+```
+
+
+# TouchableHighlight
+Source: https://docs.uniwind.dev/components/touchable-highlight
+
+Learn how to use TouchableHighlight with Uniwind className props
+
+## Overview
+
+The `TouchableHighlight` component provides visual feedback by underlaying a color when pressed. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `underlayColor`): Use the `accent-` prefix (e.g., `underlayColorClassName="accent-gray-200"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="underlayColorClassName" type="string">
+  Maps to the `underlayColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { TouchableHighlight, Text } from 'react-native'
+
+<TouchableHighlight
+  className="bg-blue-500 px-6 py-3 rounded-lg"
+  underlayColorClassName="accent-blue-600 dark:accent-blue-700"
+  onPress={() => console.log('Pressed')}
+>
+  <Text className="text-white text-center font-semibold">Press me</Text>
+</TouchableHighlight>
+```
+
+
+# TouchableNativeFeedback
+Source: https://docs.uniwind.dev/components/touchable-native-feedback
+
+Learn how to use TouchableNativeFeedback with Uniwind className props
+
+## Overview
+
+The `TouchableNativeFeedback` component (Android only) provides native touch feedback. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { TouchableNativeFeedback, View, Text } from 'react-native'
+
+<TouchableNativeFeedback
+  onPress={() => console.log('Pressed')}
+  background={TouchableNativeFeedback.Ripple('#3b82f6', false)}
+>
+  <View className="bg-blue-500 rounded-lg p-4">
+    <Text className="text-white font-bold text-center">
+      Press Me
+    </Text>
+  </View>
+</TouchableNativeFeedback>
+```
+
+<Tip>
+  `TouchableNativeFeedback` is Android-only and provides material design ripple effects. For cross-platform solutions, consider using `TouchableOpacity` or `Pressable` instead.
+</Tip>
+
+
+# TouchableOpacity
+Source: https://docs.uniwind.dev/components/touchable-opacity
+
+Learn how to use TouchableOpacity with Uniwind className props
+
+## Overview
+
+The `TouchableOpacity` component wraps views to make them respond properly to touches with opacity feedback. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { TouchableOpacity, Text } from 'react-native'
+
+<TouchableOpacity
+  onPress={() => console.log('Pressed')}
+  activeOpacity={0.7}
+  className="bg-blue-500 rounded-lg p-4 m-2"
+>
+  <Text className="text-white font-bold text-center">
+    Press Me
+  </Text>
+</TouchableOpacity>
+```
+
+
+# TouchableWithoutFeedback
+Source: https://docs.uniwind.dev/components/touchable-without-feedback
+
+Learn how to use TouchableWithoutFeedback with Uniwind className props
+
+## Overview
+
+The `TouchableWithoutFeedback` component responds to touches without providing visual feedback. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { TouchableWithoutFeedback, View, Text } from 'react-native'
+
+<TouchableWithoutFeedback onPress={() => console.log('Pressed')}>
+  <View className="bg-gray-100 rounded-lg p-4 m-2">
+    <Text className="text-gray-900 text-center">
+      Press Me (No Feedback)
+    </Text>
+  </View>
+</TouchableWithoutFeedback>
+```
+
+
+# View
+Source: https://docs.uniwind.dev/components/view
+
+Learn how to use View with Uniwind className props
+
+## Overview
+
+The `View` component is the fundamental building block for UI. Uniwind provides className prop support for styling this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+<View className="flex-1 bg-white dark:bg-gray-900 p-4" />
+```
+
+
+# VirtualizedList
+Source: https://docs.uniwind.dev/components/virtualized-list
+
+Learn how to use VirtualizedList with Uniwind className props
+
+## Overview
+
+The `VirtualizedList` component is the base implementation for `FlatList` and `SectionList`, providing highly performant list rendering. Uniwind provides className prop support for styling various parts of this component.
+
+## Styling Convention
+
+<Info>
+  **For `style` props:** Use regular Tailwind classes directly (e.g., `className="p-4"`).
+
+  **For non-style props** (like `color`): Use the `accent-` prefix (e.g., `colorClassName="accent-blue-500"`).
+</Info>
+
+## Uniwind Bindings
+
+<ParamField path="className" type="string">
+  Maps to the `style` prop. Use any Tailwind utility classes.
+</ParamField>
+
+<ParamField path="contentContainerClassName" type="string">
+  Maps to the `contentContainerStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="endFillColorClassName" type="string">
+  Maps to the `endFillColor` prop. Requires `accent-` prefix for color values.
+</ParamField>
+
+<ParamField path="ListFooterComponentClassName" type="string">
+  Maps to the `ListFooterComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+<ParamField path="ListHeaderComponentClassName" type="string">
+  Maps to the `ListHeaderComponentStyle` prop. Use regular Tailwind classes (no `accent-` prefix needed).
+</ParamField>
+
+## Usage Example
+
+```tsx  theme={null}
+import { VirtualizedList, Text } from 'react-native'
+
+<VirtualizedList
+  data={items}
+  getItem={(data, index) => data[index]}
+  getItemCount={(data) => data.length}
+  renderItem={({ item }) => <Text className="p-4">{item.name}</Text>}
+  className="flex-1"
+  contentContainerClassName="p-4"
+  endFillColorClassName="accent-gray-100 dark:accent-gray-900"
+/>
+```
+
+
+# Introduction
+Source: https://docs.uniwind.dev/index
+
+Welcome to Uniwind - the fastest Tailwind bindings for React Native!
+
+## Setting up
+
+Get your project up and running in minutes.
+
+<Card title="Get started" icon="laptop" href="/quickstart" horizontal>
+  Installation instructions
+</Card>
+
+## Learn about Uniwind
+
+Follow our guides to get the most out of the library.
+
+<Columns cols={2}>
+  <Card title="API documentation" icon="terminal" href="/api/use-uniwind">
+    Explore the complete API reference for Uniwind hooks and utilities.
+  </Card>
+
+  <Card title="Theming" icon="palette" href="/theming/basics">
+    Customize themes, colors, and design tokens for your React Native app.
+  </Card>
+</Columns>
+
+## How to use `classNames` with any component
+
+Learn how to apply Uniwind styles to any component in your app.
+
+<Columns cols={2}>
+  <Card title="React Native components" icon="react" href="/components/activity-indicator">
+    Style built-in React Native components with Tailwind classes.
+  </Card>
+
+  <Card title="3rd party components" icon="code" href="/components/other-components">
+    Integrate Uniwind with third-party component libraries.
+  </Card>
+</Columns>
+
+## Feedback
+
+<Columns cols={2}>
+  <Card title="Leave us feedback!" icon="stars" href="https://github.com/Unistyles-OSS/uniwind/discussions">
+    Let us know what you think about Uniwind!
+  </Card>
+
+  <Card title="Star Uniwind on GitHub!" icon="stars" href="https://github.com/Unistyles-OSS/uniwind/stargazers">
+    Support Uniwind by giving it a star
+  </Card>
+</Columns>
+
+
+# Migration from Nativewind
+Source: https://docs.uniwind.dev/migration-from-nativewind
+
+Migrate your React Native app from Nativewind to Uniwind in minutes
+
+Migrating your project from Nativewind to Uniwind should take no more than a few minutes. This guide highlights the main differences and provides a step-by-step migration process.
+
+## Key Differences
+
+Before starting the migration, it's important to understand how Uniwind differs from Nativewind:
+
+<Check>
+  Uniwind supports **Tailwind 4 only**. Make sure you upgrade Tailwind CSS to version 4.
+</Check>
+
+* **Default rem value**: Uniwind uses `16px` as the default value for the `rem` unit
+* **No global overrides**: We don't override global components like Nativewind's `cssInterop`
+* **CSS-based theming**: Themes are defined in CSS files instead of `tailwind.config.js`
+* **No ThemeProvider required**: Uniwind doesn't require wrapping your app in a `ThemeProvider` to switch themes
+
+## Prerequisites
+
+Nativewind depends on the following packages:
+
+* `react-native-reanimated`
+* `react-native-safe-area-context`
+* `tailwindcss`
+
+<Info>
+  We recommend keeping both `react-native-reanimated` and `react-native-safe-area-context` in your project, as they are very useful for React Native development.
+</Info>
+
+<Warning>
+  You'll need to upgrade `tailwindcss` to version 4, as Uniwind requires it.
+</Warning>
+
+## Migration Steps
+
+### Step 1: Install Uniwind
+
+Follow the [Quickstart](/quickstart) guide to install Uniwind in your project.
+
+### Step 2: Remove Nativewind Babel preset
+
+Remove the Nativewind Babel preset from your `babel.config.js` file:
+
+```js babel.config.js theme={null}
+module.exports = {
+  presets: ['<existing presets>'], // [!code ++]
+  presets: ['<existing presets>', 'nativewind/babel'], // [!code --]
+};
+```
+
+### Step 3: Update Metro configuration
+
+Modify your `metro.config.js` to remove the Nativewind configuration and use Uniwind's configuration instead:
+
+```js metro.config.js theme={null}
+const { getDefaultConfig } = require('@react-native/metro-config');
+const { withUniwindConfig } = require('uniwind/metro'); // [!code ++]
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withUniwindConfig(config, { // [!code ++:3]
+  cssEntryFile: './src/global.css'
+});
+```
+
+<Info>
+  Learn more about Metro configuration in the [Metro Config](/api/metro-config) documentation.
+</Info>
+
+### Step 4: Update your global CSS file
+
+Replace the top of your `global.css` file with the following imports:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Your custom CSS and theme configuration (see Step 6) */
+```
+
+### Step 5: Remove Nativewind type definitions
+
+Delete the `nativewind.d.ts` file from your project, as it's no longer needed.
+
+### Step 6: Convert your CSS to Tailwind 4 syntax
+
+You can keep most of your existing CSS as-is, but you'll need to follow Tailwind 4's `@theme` syntax for theme configuration.
+
+<Tip>
+  Check out the [official Tailwind 4 theme guide](https://tailwindcss.com/docs/theme) for more details on the new syntax.
+</Tip>
+
+### Step 7: Migrate theme variables from JavaScript to CSS
+
+If you defined custom theme variables using Nativewind's `vars` helper:
+
+<AccordionGroup>
+  <Accordion icon="code" title="Before: JavaScript theme configuration" defaultOpen>
+    ```ts vars.ts theme={null}
+    import { vars } from 'nativewind'
+
+    export const themes = {
+      light: vars({
+        '--color-primary': '#00a8ff',
+        '--color-gray': '#f0f0f0',
+        '--color-typography': '#000',
+      }),
+      dark: vars({
+        '--color-primary': '#273c75',
+        '--color-gray': '#353b48',
+        '--color-typography': '#fff',
+      }),
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="css" title="After: CSS theme configuration" defaultOpen>
+    Move these variables directly to your `global.css` file:
+
+    ```css global.css theme={null}
+    @import 'tailwindcss';
+    @import 'uniwind';
+
+    /* Other directives like @theme or custom CSS */
+
+    @layer theme {
+      :root {
+        @variant light {
+          --color-primary: #00a8ff;
+          --color-gray: #f0f0f0;
+          --color-typography: #000;
+        }
+
+        @variant dark {
+          --color-primary: #273c75;
+          --color-gray: #353b48;
+          --color-typography: #fff;
+        }
+      }
+    }
+    ```
+
+    <Tip>
+      You can now safely delete the file containing the `vars` helper, as it's no longer used.
+    </Tip>
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  If you need to access CSS variables in JavaScript, you can use `useResolveClassNames` [hook](/api/use-resolve-class-names).
+</Note>
+
+### Step 8: Remove tailwind.config.js
+
+With Uniwind, you no longer need a `tailwind.config.js` file. Theme configuration is now done entirely in CSS.
+
+<AccordionGroup>
+  <Accordion icon="file-code" title="Example: Old tailwind.config.js">
+    ```js tailwind.config.js theme={null}
+    /** @type {import('tailwindcss').Config} */
+    module.exports = {
+      content: ['./App.tsx'],
+      presets: [require('nativewind/preset')],
+      theme: {
+        extend: {
+          colors: {
+            primary: 'var(--color-primary)',
+            gray: 'var(--color-gray)',
+            typography: 'var(--color-typography)',
+          },
+        },
+      },
+      plugins: [],
+    }
+    ```
+
+    <Warning>
+      Delete this file. All theme configuration should now be in your `global.css` file.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+### Step 9: (Optional) Customize the default rem value
+
+If you want to keep Nativewind's default `rem` value of `14px`, configure it in your `metro.config.js`:
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  polyfills: { // [!code ++:3]
+    rem: 14,
+  },
+});
+```
+
+### Step 10: Remove ThemeContext where you set `colorScheme`
+
+Uniwind doesn't require a `ThemeProvider` to manage themes. Simply remove it from your app:
+
+<AccordionGroup>
+  <Accordion icon="ban" title="Before: With ThemeProvider">
+    ```tsx ThemeProvider.tsx theme={null}
+    export const ThemeProvider = ({ children }: ThemeProviderProps) => {
+        const { colorScheme } = useColorScheme()
+
+        return (
+            <ThemeContext.Provider value={{ theme: colorScheme as 'light' | 'dark' }}>
+                <View style={themes[colorScheme as 'light' | 'dark']} className="flex-1">
+                    {children}
+                </View>
+            </ThemeContext.Provider>
+        )
+    }
+    ```
+
+    ```tsx App.tsx theme={null}
+    import { ThemeProvider } from './ThemeProvider';
+
+    export default function App() {
+      return (
+        <ThemeProvider>
+          <YourApp />
+        </ThemeProvider>
+      );
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="check" title="After: Without ThemeProvider">
+    ```tsx App.tsx theme={null}
+    export default function App() {
+      return <YourApp />;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Step 11: Replace cssInterop with `withUniwind`
+
+If you're using Nativewind's `cssInterop` to style third-party components, replace it with Uniwind's `withUniwind`:
+
+<Info>
+  Learn more about `withUniwind` in the [withUniwind API documentation](/api/with-uniwind).
+</Info>
+
+### Step 12: Handle safe area utilities
+
+If you used Nativewind's `p-safe` or `m-safe` class names, you'll need to use the `useSafeAreaInsets` hook from `react-native-safe-area-context` instead:
+
+<AccordionGroup>
+  <Accordion icon="ban" title="Before: Using p-safe">
+    ```tsx  theme={null}
+    export default function App() {
+      return <View className="p-safe" />;
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="check" title="After: Using useSafeAreaInsets">
+    ```tsx  theme={null}
+    import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+    export default function App() {
+      const insets = useSafeAreaInsets();
+      return <View style={{ paddingTop: insets.top }} />;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Uniwind doesn't depend on `react-native-safe-area-context`, and there's no way to access safe area values directly from React Native's core APIs.
+</Warning>
+
+<Tip>
+  You can also use `SafeAreaView` from `react-native-safe-area-context` to handle safe area insets.
+</Tip>
+
+### Step 13: Update animated class names
+
+If you used Nativewind's `animated` class names from Tailwind, you'll need to use Reanimated's syntax directly.
+
+<Tip>
+  Check out the [React Native Reanimated documentation](https://docs.swmansion.com/react-native-reanimated/docs/css-animations/animation-name) for animation patterns.
+</Tip>
+
+## Need Help?
+
+<Card title="Missing Features?" icon="github" href="https://github.com/Unistyles-OSS/uniwind/issues">
+  If you're using Nativewind and notice any missing features in Uniwind, please open an issue on GitHub. We're happy to add support!
+</Card>
+
+<Note>
+  **Still having issues with migration?** Start a discussion on [GitHub](https://github.com/Unistyles-OSS/uniwind/discussions) and we'll help you migrate.
+</Note>
+
+
+# Monorepos
+Source: https://docs.uniwind.dev/monorepos
+
+Configure Uniwind to work seamlessly in monorepo setups
+
+## Overview
+
+When working with monorepos or shared component libraries, you may need to include source files from outside your main application directory. Uniwind leverages Tailwind CSS v4's automatic content detection, which intelligently scans your project for class names without manual configuration.
+
+<Info>
+  **Not using a monorepo?** This guide also applies to standard projects! If your `global.css` is in a nested folder (like `app/global.css` for Expo Router) and you have components in other directories, you'll need to use `@source` to include them.
+</Info>
+
+<Info>
+  Tailwind v4 automatically excludes files listed in `.gitignore` and binary file types, so you don't need to worry about scanning `node_modules` or generated files.
+</Info>
+
+## Including External Sources
+
+If you're using shared UI components from other packages in your monorepo, you can explicitly include them using the `@source` directive in your `global.css` file.
+
+### Using the @source Directive
+
+Add the `@source` directive to your CSS entry file to include additional directories:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@source '../packages/ui-components';
+@source '../packages/shared-components';
+```
+
+<Tip>
+  The `@source` directive uses the same smart detection rules as automatic scanning, so it will skip binary files and respect `.gitignore` entries.
+</Tip>
+
+## Common Use Cases
+
+### Expo Router with Components Outside App Directory
+
+If you're using Expo Router and your `global.css` is in the `app` directory, but you have components in a separate `components` folder:
+
+```css app/global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Include components directory at the root level */
+@source '../components';
+```
+
+<Tip>
+  This is a common setup for Expo Router projects where routes live in `app` but shared components live in `components`.
+</Tip>
+
+### Shared Component Library
+
+If your monorepo has a shared UI library that other apps consume:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Include your shared component library */
+@source '../../packages/ui-library';
+```
+
+### Multiple Package Sources
+
+For complex monorepos with multiple component packages:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@source '../packages/design-system';
+@source '../packages/feature-components';
+@source '../packages/marketing-components';
+```
+
+### Third-Party UI Libraries
+
+Include custom UI libraries from `node_modules` that aren't automatically detected:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@source '../node_modules/@my-company/ui-kit';
+```
+
+## How Automatic Detection Works
+
+Tailwind v4 (and by extension, Uniwind) automatically discovers template files in your project using intelligent heuristics:
+
+1. **Respects .gitignore** - Files in `.gitignore` are automatically excluded
+2. **Skips binary files** - Images, videos, archives, and other binary formats are ignored
+3. **Scans relevant files** - Focuses on source files where className attributes are likely to appear
+
+<Info>
+  **Important:** The `cssEntryFile` path in your `metro.config.js` determines the app root. Tailwind scans for classNames starting from the directory containing your `global.css` file. Files outside this directory require the `@source` directive.
+</Info>
+
+<Info>
+  In most cases, you won't need to configure anything. Automatic detection works out of the box for standard project structures.
+</Info>
+
+## When to Use @source
+
+You typically only need the `@source` directive when:
+
+* Your `global.css` is in a nested folder and you have components in sibling or parent directories (common with Expo Router)
+* Using shared components from other packages in a monorepo
+* Consuming a custom UI library that's outside your main app directory
+* Working with Yarn/pnpm workspaces where packages are symlinked
+* Including components from a private npm package that contains Uniwind classes
+
+<Tip>
+  If your components are already within your app directory or workspace, you don't need `@source` - automatic detection handles it.
+</Tip>
+
+## Troubleshooting
+
+### Classes Not Being Detected
+
+If classes from your shared library or components aren't being detected:
+
+1. **Check your `cssEntryFile` path** in `metro.config.js` - make sure it points to the correct `global.css` location
+2. Verify the path in your `@source` directive is correct and relative to your `global.css` file
+3. Check that the files aren't excluded by `.gitignore`
+4. Ensure the source directories contain actual source files, not just compiled JavaScript
+5. Restart your Metro bundler after adding `@source` directives
+
+### Performance Concerns
+
+If build times increase after adding `@source`:
+
+* Make sure you're not accidentally including large directories like `node_modules`
+* Verify your `.gitignore` is properly configured to exclude build artifacts
+* Only include specific package directories rather than entire workspace roots
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="laptop" href="/quickstart">
+    Set up Uniwind in your React Native project
+  </Card>
+
+  <Card title="Global CSS" icon="css3" href="/theming/global-css">
+    Learn more about configuring your global.css file
+  </Card>
+
+  <Card title="Metro Config" icon="train" href="/api/metro-config">
+    Configure Metro bundler for Uniwind
+  </Card>
+</CardGroup>
+
+
+# Pro Version
+Source: https://docs.uniwind.dev/pro-version
+
+Unlock the full potential of Uniwind with cutting-edge performance
+
+<Info>
+  💙 **Thank you for using Uniwind!** Whether you choose Free or Pro, we're committed to making it the best styling solution for React Native.
+</Info>
+
+<Warning>
+  **Coming soon** - The Pro version is currently in development and will be available soon!
+</Warning>
+
+## Overview
+
+Uniwind comes in two versions: a **free MIT-licensed** version that covers all your styling needs, and a **Pro version** powered by the Unistyles engine for apps demanding the highest performance.
+
+<Info>
+  Both versions are production-ready and actively maintained. Choose the one that fits your project's needs!
+</Info>
+
+## Feature Comparison
+
+| Feature                  | Free Version                                             | Pro Version                             |
+| ------------------------ | -------------------------------------------------------- | --------------------------------------- |
+| **Tailwind CSS Support** | ✅ Full support                                           | ✅ Full support                          |
+| **Theme System**         | ✅ Light, Dark, Custom                                    | ✅ Light, Dark, Custom                   |
+| **Platform Selectors**   | ✅ iOS, Android, Web                                      | ✅ iOS, Android, Web                     |
+| **CSS Parser**           | ✅ Included                                               | ✅ Included                              |
+| **Expo Go Compatible**   | ✅ Yes                                                    | ❌ Requires dev client                   |
+| **Performance**          | ⚡ On par with Unistyles 3.0                              | 🚀 Best in class                        |
+| **Engine**               | JavaScript-based                                         | C++ with Unistyles engine               |
+| **Shadow Tree Updates**  | Standard re-renders                                      | ✨ Zero re-renders                       |
+| **Animation support**    | ❌ No translation layer, you need to use `style` property | ✨ Reanimated 4 support via `className`  |
+| **Native Updates**       | ❌ Built in RN hooks                                      | ✨ All platform specific values from C++ |
+| **Props Automapping**    | ✅ All RN components                                      | ✅ All RN components                     |
+| **License**              | MIT & Commercial                                         | Commercial                              |
+| **Support**              | Community                                                | ✨ Priority support                      |
+| **Project Limit**        | Unlimited                                                | Unlimited                               |
+
+## Free Version: Perfect for Most Apps
+
+The free version of Uniwind is packed with everything you need to build beautiful React Native apps:
+
+### What You Get
+
+<Columns cols={2}>
+  <Card title="Full Tailwind Bindings" icon="wind">
+    Complete Tailwind CSS v4 support with all utility classes, variants, and customization options.
+  </Card>
+
+  <Card title="Great Performance" icon="gauge-high">
+    Performance on par with Unistyles 3.0 - fast enough for the vast majority of production apps.
+  </Card>
+
+  <Card title="Expo Go Support" icon="mobile">
+    Test your app instantly with Expo Go. No need for custom dev clients during development.
+  </Card>
+
+  <Card title="Complete Theming" icon="palette">
+    Built-in support for color schemes, orientation, and responsive breakpoints.
+  </Card>
+
+  <Card title="MIT License" icon="scale-balanced">
+    Use it in any project - personal, commercial, open source. No restrictions.
+  </Card>
+
+  <Card title="RN Style Props Automapping" icon="wand-magic-sparkles">
+    All React Native components work seamlessly with className props.
+  </Card>
+</Columns>
+
+### Ideal For
+
+* 🎨 Apps with complex styling requirements
+* 📱 Standard React Native applications
+* 🚀 Startups and indie developers
+* 🏢 Commercial products
+* 📚 Open-source projects
+* 🎓 Learning and prototyping
+
+## Pro Version: Maximum Performance
+
+The Pro version takes performance to the next level with C++ bindings and the battle-tested Unistyles engine.
+
+### What You Get Extra
+
+<Columns cols={2}>
+  <Card title="C++ Bindings with Unistyles Engine" icon="bolt">
+    Built on the proven Unistyles C++ engine for native-level performance.
+  </Card>
+
+  <Card title="Best in Class Performance" icon="trophy">
+    The fastest styling solution available for React Native apps.
+  </Card>
+
+  <Card title="Zero Re-renders" icon="sparkles">
+    Shadow Tree updates happen without triggering React re-renders, keeping your UI buttery smooth.
+  </Card>
+
+  <Card title="Reanimated 4 Animations" icon="wand-magic-sparkles">
+    Full integration with the latest Reanimated 4 for advanced animations.
+  </Card>
+
+  <Card title="Platform specific updates" icon="mobile-screen">
+    Automatic font scale and safe area insets updates directly from the native layer.
+  </Card>
+
+  <Card title="Priority Support" icon="headset">
+    Get help faster with priority support and direct communication with maintainers.
+  </Card>
+
+  <Card title="Unlimited Projects" icon="infinity">
+    Use Pro in unlimited projects within your organization. Pay for a seat build any number of projects.
+  </Card>
+</Columns>
+
+### Ideal For
+
+* 🏆 Apps with demanding performance requirements
+* 💼 Enterprise applications
+* 📈 Apps with large user bases
+* ⚡ Performance-critical features
+
+<Warning>
+  **Note:** The Pro version requires a custom development build and is not compatible with Expo Go.
+</Warning>
+
+## Benchmarks
+
+Comming Soon 🚧
+
+## Supporting Uniwind Development
+
+We believe in giving back to the community, which is why Uniwind's core features are free and MIT-licensed. If Uniwind saves you time and helps you build better apps, consider supporting us:
+
+### Why Support Us?
+
+* 🛠️ **Active Development**: We're constantly improving Uniwind with new features and bug fixes
+* 📚 **Quality Documentation**: Comprehensive guides and examples to help you succeed
+* 💬 **Community Support**: Active community and GitHub discussions
+* 🚀 **Future Innovation**: Your support enables us to push the boundaries of React Native styling
+
+### Ways to Support
+
+<CardGroup cols={2}>
+  <Card title="Upgrade to Pro" icon="star" href="https://uniwind.dev/pricing">
+    Get the best performance and priority support
+  </Card>
+
+  <Card title="Sponsor on GitHub" icon="heart" href="https://github.com/sponsors/jpudysz">
+    Support development with a monthly contribution
+  </Card>
+
+  <Card title="Share Your Story" icon="bullhorn" href="https://x.com">
+    Tell others how Uniwind helped your project
+  </Card>
+
+  <Card title="Contribute" icon="code-branch" href="https://github.com/Unistyles-OSS/uniwind">
+    Help improve Uniwind with code contributions
+  </Card>
+</CardGroup>
+
+## Making the Choice
+
+Still not sure which version is right for you? Here's our recommendation:
+
+### Start with Free
+
+<Tip>
+  **We recommend starting with the free version!** It's powerful enough for 95% of apps, and you can always upgrade to Pro later if you need that extra performance boost.
+</Tip>
+
+The free version gives you:
+
+* Everything you need to build production apps
+* No limitations on features or projects
+* Time to evaluate if Pro's performance benefits matter for your use case
+
+### Upgrade to Pro When
+
+Consider upgrading to Pro if you:
+
+* Notice performance bottlenecks with complex styling
+* Need the absolute best performance for your users
+* Want to support the project while getting extra benefits
+* Require priority support for business-critical apps
+* Work on apps with large user bases where every millisecond counts
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Can I try Pro before buying?">
+    No, the Pro version is in a separate GitHub repository. You will get full access to the Pro version after purchase.
+  </Accordion>
+
+  <Accordion title="Can I upgrade from Free to Pro later?">
+    Absolutely! Upgrading is seamless - the API is identical, so no code changes are needed. Just install the Pro package and you're good to go.
+  </Accordion>
+
+  <Accordion title="Is the free version truly unlimited?">
+    Yes! Use it in unlimited projects, commercial or personal. No hidden catches or usage limits.
+  </Accordion>
+
+  <Accordion title="What does priority support include?">
+    Pro users get faster response times, direct access to maintainers, and help with integration issues.
+  </Accordion>
+
+  <Accordion title="Can I use Pro in multiple projects?">
+    Yes! Your Pro license covers unlimited projects within your organization.
+  </Accordion>
+
+  <Accordion title="Does Pro work with Expo Go?">
+    No, Pro requires a custom development build because of its native C++ components. However, it works great with EAS Build and bare React Native.
+  </Accordion>
+</AccordionGroup>
+
+## Get Started Today
+
+<CardGroup cols={2}>
+  <Card title="Start with Free" icon="rocket" href="/quickstart">
+    Begin building with Uniwind in minutes
+  </Card>
+
+  <Card title="Explore Pro" icon="star" href="https://uniwind.dev/pricing">
+    See Pro pricing and features
+  </Card>
+</CardGroup>
+
+***
+
+
+# Quickstart
+Source: https://docs.uniwind.dev/quickstart
+
+Start building with Uniwind in 3 minutes!
+
+### Step 1: Install Uniwind and Tailwind
+
+<Check>
+  Uniwind only supports **Tailwind 4**.
+</Check>
+
+<AccordionGroup>
+  <Accordion icon="terminal" title="Installation" defaultOpen>
+    ```bash  theme={null}
+    npm install uniwind tailwindcss
+    ```
+
+    ```bash  theme={null}
+    yarn add uniwind tailwindcss
+    ```
+
+    ```bash  theme={null}
+    bun add uniwind tailwindcss
+    ```
+  </Accordion>
+
+  <Accordion icon="css" title="Create global.css file" defaultOpen>
+    This file will serve as your CSS entry point.
+
+    ```css lines theme={null}
+    @import 'tailwindcss';
+    @import 'uniwind';
+    ```
+
+    <Info>
+      We recommend keeping this file in the root of your project.
+
+      **Location matters!** The location of `global.css` determines your app root - Tailwind will automatically scan for classNames starting from this directory. If you place `global.css` in a nested folder (like `app/global.css`), classNames in other directories won't be detected unless you explicitly include them using the `@source` directive.
+    </Info>
+  </Accordion>
+
+  <Accordion icon="file-import" title="Import global.css file" defaultOpen>
+    Import the CSS file in your `App.tsx` (main component).
+
+    ```tsx  theme={null}
+    import './global.css' // <-- file from previous step
+
+    // other imports
+
+    export const App = () => {} // <-- your app's main component
+    ```
+
+    <Danger>Don’t import `global.css` in the root `index.ts`/`index.js` file where you register the Root Component, as any change will trigger a full reload instead of hot reload.</Danger>
+
+    ```tsx  theme={null}
+    // ‼️ Don't do that
+    import './global.css';
+
+    import { registerRootComponent } from 'expo';
+    import { App } from './src';  // <- ✅ import it somewhere in the src folder
+
+    registerRootComponent(App);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Step 2: Configure metro
+
+<Tabs>
+  <Tab title="Expo">
+    <AccordionGroup>
+      <Accordion icon="train" title="Modify metro.config.js" defaultOpen>
+        <Info>If you don't see a `metro.config.js` file in your project, you can create it with `npx expo customize metro.config.js`.</Info>
+
+        ```js lines metro.config.js theme={null}
+        const { getDefaultConfig } = require('expo/metro-config');
+        const { withUniwindConfig } = require('uniwind/metro'); // [!code ++]
+
+        const config = getDefaultConfig(__dirname);
+
+        // your metro modifications
+
+        module.exports = withUniwindConfig(config, {  // [!code ++:7]
+          // relative path to your global.css file (from previous step)
+          cssEntryFile: './src/global.css',
+          // (optional) path where we gonna auto-generate typings
+          // defaults to project's root
+          dtsFile: './src/uniwind-types.d.ts'
+        });
+        ```
+
+        <Info>We recommend placing the `uniwind-types.d.ts` file in the `src` or `app` directory, as it will be automatically included by TypeScript. For custom paths (e.g., root of your project), please include it in your `tsconfig.json`.</Info>
+        <Warning>You need to run metro server to generate typings and fix all TypeScript errors.</Warning>
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+
+  <Tab title="Bare React Native">
+    <AccordionGroup>
+      <Accordion icon="train" title="Modify metro.config.js" defaultOpen>
+        ```js lines metro.config.js theme={null}
+        const { getDefaultConfig } = require('@react-native/metro-config')
+        const { withUniwindConfig } = require('uniwind/metro'); // [!code ++]
+
+        const config = getDefaultConfig(__dirname);
+
+        // your metro modifications
+
+        module.exports = withUniwindConfig(config, {  // [!code ++:7]
+          // relative path to your global.css file (from previous step)
+          cssEntryFile: './src/global.css',
+          // (optional) path where we gonna auto-generate typings
+          // defaults to project's root
+          dtsFile: './src/uniwind-types.d.ts'
+        });
+        ```
+
+        <Info>We recommend placing the `uniwind-types.d.ts` file in the `src` or `app` directory, as it will be automatically included by TypeScript. For custom paths (e.g., root of your project), please include it in your `tsconfig.json`.</Info>
+        <Warning>You need to run metro server to generate typings and fix all TypeScript errors.</Warning>
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+</Tabs>
+
+### Step 3: (Optional) Enable Tailwind IntelliSense for Uniwind
+
+<Tabs>
+  <Tab title="VSCode/ Windsurf /Cursor">
+    <Accordion icon="cog" title="settings.json">
+      1. Open `settings.json` file in your editor
+      2. Add the following configuration:
+
+         ```json  theme={null}
+         {
+             "tailwindCSS.classAttributes": [
+                 "class",
+                 "className",
+                 "headerClassName",
+                 "contentContainerClassName",
+                 "columnWrapperClassName",
+                 "endFillColorClassName",
+                 "imageClassName",
+                 "tintColorClassName",
+                 "ios_backgroundColorClassName",
+                 "thumbColorClassName",
+                 "trackColorOnClassName",
+                 "trackColorOffClassName",
+                 "selectionColorClassName",
+                 "cursorColorClassName",
+                 "underlineColorAndroidClassName",
+                 "placeholderTextColorClassName",
+                 "selectionHandleColorClassName",
+                 "colorsClassName",
+                 "progressBackgroundColorClassName",
+                 "titleColorClassName",
+                 "underlayColorClassName",
+                 "colorClassName",
+                 "drawerBackgroundColorClassName",
+                 "statusBarBackgroundColorClassName",
+                 "backdropColorClassName",
+                 "backgroundColorClassName",
+                 "ListFooterComponentClassName",
+                 "ListHeaderComponentClassName"
+             ],
+             "tailwindCSS.classFunctions": [
+                 "useResolveClassNames"
+             ]
+         }
+         ```
+    </Accordion>
+  </Tab>
+
+  <Tab title="Zed">
+    <Accordion icon="cog" title="settings.json">
+      1. Open `settings.json` file in your editor
+      2. Add the following configuration:
+
+         ```json  theme={null}
+             {
+               "lsp": {
+                 "tailwindcss-language-server": {
+                   "settings": {
+                     "classAttributes": [
+                       "class",
+                       "className",
+                       "headerClassName",
+                       "contentContainerClassName",
+                       "columnWrapperClassName",
+                       "endFillColorClassName",
+                       "imageClassName",
+                       "tintColorClassName",
+                       "ios_backgroundColorClassName",
+                       "thumbColorClassName",
+                       "trackColorOnClassName",
+                       "trackColorOffClassName",
+                       "selectionColorClassName",
+                       "cursorColorClassName",
+                       "underlineColorAndroidClassName",
+                       "placeholderTextColorClassName",
+                       "selectionHandleColorClassName",
+                       "colorsClassName",
+                       "progressBackgroundColorClassName",
+                       "titleColorClassName",
+                       "underlayColorClassName",
+                       "colorClassName",
+                       "drawerBackgroundColorClassName",
+                       "statusBarBackgroundColorClassName",
+                       "backdropColorClassName",
+                       "backgroundColorClassName",
+                       "ListFooterComponentClassName",
+                       "ListHeaderComponentClassName"
+                     ],
+                     "classFunctions": ["useResolveClassNames"]
+                   }
+                 }
+               }
+             }
+         ```
+    </Accordion>
+  </Tab>
+</Tabs>
+
+## Next steps
+
+Now that you have your Uniwind project running, explore these key features:
+
+<CardGroup cols={2}>
+  <Card title="API documentation" icon="terminal" href="/api/use-uniwind">
+    Explore the complete API reference for Uniwind hooks and utilities.
+  </Card>
+
+  <Card title="Theming" icon="palette" href="/theming/basics">
+    Customize themes, colors, and design tokens for your React Native app.
+  </Card>
+
+  <Card title="React Native components" icon="react" href="/components/activity-indicator">
+    Style built-in React Native components with Tailwind classes.
+  </Card>
+
+  <Card title="3rd party components" icon="code" href="/components/other-components">
+    Integrate Uniwind with third-party component libraries.
+  </Card>
+
+  <Card title="Monorepos & @source" icon="folder-tree" href="/monorepos">
+    Learn how to include components from multiple directories using @source.
+  </Card>
+</CardGroup>
+
+<Note>
+  **Need help?** Start a discussion on [GitHub](https://github.com/Unistyles-OSS/uniwind/discussions).
+</Note>
+
+
+# Tailwind Basics
+Source: https://docs.uniwind.dev/tailwind-basics
+
+Learn how to use Tailwind CSS classes effectively with Uniwind
+
+## Understanding Tailwind CSS
+
+If you're new to Tailwind CSS, we highly recommend exploring the official [Tailwind documentation](https://tailwindcss.com/docs) to learn about utility classes, responsive design, and customization options.
+
+## Working with Dynamic `classNames`
+
+Uniwind uses the Tailwind parser to process your `className` strings at build time. This means that **dynamically constructed class names cannot be detected** by the Tailwind compiler, as explained in the [Tailwind guide on detecting classes](https://tailwindcss.com/docs/content-configuration#dynamic-class-names).
+
+<Warning>
+  Always use complete class names in your source code. Never construct class names using string interpolation or concatenation.
+</Warning>
+
+### ❌ Incorrect Usage
+
+The following examples show common mistakes that prevent Tailwind from detecting your classes:
+
+#### Example 1: String interpolation in class names
+
+```tsx  theme={null}
+<View className="bg-{{ error ? 'red' : 'green' }}-600" />
+```
+
+**Why this doesn't work:** The Tailwind compiler cannot detect the classes `bg-red-600` and `bg-green-600` because they're constructed dynamically. Uniwind won't be able to precompile these classes, resulting in no styling.
+
+#### Example 2: Template literals with variables
+
+```tsx  theme={null}
+<Text className={`text-${props.color}`} />
+```
+
+**Why this doesn't work:** The Tailwind compiler cannot determine what `text-${props.color}` will be at runtime, so it won't generate the necessary styles.
+
+### ✅ Correct Usage
+
+Here are the recommended patterns for conditionally applying Tailwind classes:
+
+#### Solution 1: Use complete class names with conditionals
+
+```tsx  theme={null}
+<View className={error ? 'bg-red-600' : 'bg-green-600'} />
+```
+
+**Why this works:** The Tailwind compiler can detect both `bg-red-600` and `bg-green-600` because you've written out the complete class names.
+
+#### Solution 2: Create a mapping object with complete class names
+
+```tsx  theme={null}
+const colorVariants = {
+  black: "bg-black text-white",
+  blue: "bg-blue-500 text-white",
+  white: "bg-white text-black",
+};
+
+<Text className={colorVariants[props.color]} />
+```
+
+**Why this works:** All possible class names are written in full within the `colorVariants` object, allowing Tailwind to detect and generate them at build time.
+
+<Tip>
+  You can use this pattern to create reusable style variants based on props, making your components more maintainable.
+</Tip>
+
+## Advanced Pattern: Variants and Compound Variants
+
+For more complex component styling with multiple variants and conditions, we recommend using [tailwind-variants](https://www.tailwind-variants.org/), a popular open-source library that Uniwind fully supports.
+
+Tailwind Variants allows you to:
+
+* Define multiple style variants for your components
+* Create compound variants (styles that apply when multiple conditions are met)
+* Manage complex conditional styling in a clean, maintainable way
+
+### Example with tailwind-variants
+
+```tsx  theme={null}
+import { tv } from 'tailwind-variants';
+
+const button = tv({
+  base: 'font-semibold rounded-lg px-4 py-2',
+  variants: {
+    color: {
+      primary: 'bg-blue-500 text-white',
+      secondary: 'bg-gray-500 text-white',
+      danger: 'bg-red-500 text-white',
+    },
+    size: {
+      sm: 'text-sm',
+      md: 'text-base',
+      lg: 'text-lg',
+    },
+  },
+  compoundVariants: [
+    {
+      color: 'primary',
+      size: 'lg',
+      class: 'bg-blue-600',
+    },
+  ],
+  defaultVariants: {
+    color: 'primary',
+    size: 'md',
+  },
+});
+
+// Usage
+<Pressable className={button({ color: 'primary', size: 'lg' })}>
+  <Text>Click me</Text>
+</Pressable>
+```
+
+<Info>
+  Learn more about tailwind-variants in their [official documentation](https://www.tailwind-variants.org/docs/introduction).
+</Info>
+
+
+# Theming Basics
+Source: https://docs.uniwind.dev/theming/basics
+
+Learn how to use and manage themes in Uniwind
+
+## Overview
+
+Uniwind provides a powerful theming system that allows you to create beautiful, consistent user interfaces that adapt to user preferences. By default, Uniwind includes three pre-configured themes: `light`, `dark`, and `system`.
+
+## Default Themes
+
+Uniwind pre-registers three themes out of the box, so you can start using them immediately without any configuration.
+
+### Available Themes
+
+| Theme    | Description                                                        |
+| -------- | ------------------------------------------------------------------ |
+| `light`  | Light theme                                                        |
+| `dark`   | Dark theme                                                         |
+| `system` | Automatically follows the device's system color scheme preferences |
+
+### Light and Dark Themes
+
+If you only need `light` and `dark` themes, you're all set! Uniwind automatically registers these themes for you, and you can start using theme-based class variants immediately:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const ThemedComponent = () => (
+  <View className="bg-white dark:bg-gray-900 p-4">
+    <Text className="text-gray-900 dark:text-white">
+      This text adapts to the current theme
+    </Text>
+  </View>
+)
+```
+
+### System Theme
+
+The `system` theme is a special theme that automatically syncs with your device's color scheme. When enabled, your app will automatically switch between light and dark themes based on the user's device settings.
+
+<Tip>
+  Using the `system` theme provides the best user experience, as it respects the user's device-wide preferences.
+</Tip>
+
+## Default Configuration
+
+Here are the default values that Uniwind uses for theming:
+
+<ParamField path="themes" type="Array<string>">
+  The list of available themes.
+
+  **Default:**
+
+  ```ts  theme={null}
+  ['light', 'dark', 'system']
+  ```
+</ParamField>
+
+<ParamField path="adaptiveThemes" type="boolean">
+  Whether themes automatically adapt to the device's color scheme.
+
+  **Default:**
+
+  ```ts  theme={null}
+  true
+  ```
+</ParamField>
+
+<ParamField path="initialTheme" type="string">
+  The theme that's applied when the app first launches.
+
+  **Default:**
+
+  ```ts  theme={null}
+  'light' | 'dark'
+  ```
+
+  Automatically determined based on your device's current color scheme.
+</ParamField>
+
+## Changing Themes
+
+You can programmatically change the active theme at runtime using the `setTheme` function.
+
+### Switch to a Specific Theme
+
+```tsx  theme={null}
+import { Uniwind } from 'uniwind'
+
+// Switch to dark theme
+Uniwind.setTheme('dark')
+
+// Switch to light theme
+Uniwind.setTheme('light')
+```
+
+<Info>
+  When you set the theme to `light` or `dark`, Uniwind automatically calls React Native's [`Appearance.setColorScheme`](https://reactnative.dev/docs/appearance). This ensures native components like `Alert`, `Modal`, and system dialogs match your app's theme.
+</Info>
+
+<Warning>
+  Switching from `system` to `light` or `dark` disables adaptive themes. The app will stay on the selected theme even if the device color scheme changes.
+</Warning>
+
+### Enable System Theme
+
+To enable automatic theme switching based on the device's color scheme:
+
+```tsx  theme={null}
+import { Uniwind } from 'uniwind'
+
+// Enable system theme (adaptive themes)
+Uniwind.setTheme('system')
+```
+
+<Tip>
+  Setting the theme to `system` re-enables adaptive themes, allowing your app to automatically follow device color scheme changes.
+</Tip>
+
+### Creating a Theme Switcher
+
+Here's a complete example of a theme switcher component:
+
+```tsx  theme={null}
+import { View, Pressable, Text } from 'react-native'
+import { Uniwind, useUniwind } from 'uniwind'
+
+export const ThemeSwitcher = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  const themes = [
+    { name: 'light', label: 'Light', icon: '☀️' },
+    { name: 'dark', label: 'Dark', icon: '🌙' },
+    { name: 'system', label: 'System', icon: '⚙️' },
+  ]
+  const activeTheme = hasAdaptiveThemes ? 'system' : theme
+
+  return (
+    <View className="p-4 gap-4">
+      <Text className="text-sm text-gray-600 dark:text-gray-300">
+        Current: {activeTheme}
+      </Text>
+
+      <View className="flex-row gap-2">
+        {themes.map((t) => (
+          <Pressable
+            key={t.name}
+            onPress={() => Uniwind.setTheme(t.name)}
+            className={`
+              px-4 py-3 rounded-lg items-center
+              ${activeTheme === t.name
+                ? 'bg-blue-500'
+                : 'bg-gray-200 dark:bg-gray-700'
+              }
+            `}
+          >
+            <Text className="text-2xl mb-1">{t.icon}</Text>
+            <Text
+              className={`text-xs ${
+                activeTheme === t.name
+                  ? 'text-white'
+                  : 'text-gray-900 dark:text-white'
+              }`}
+            >
+              {t.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  )
+}
+```
+
+## Accessing Theme Information
+
+Uniwind exposes a global object that provides information about the current theme state.
+
+### Runtime Theme Information
+
+You can access theme information programmatically:
+
+```tsx  theme={null}
+import { Uniwind } from 'uniwind'
+
+// Get the current theme name
+console.log(Uniwind.currentTheme) // e.g., 'light', 'dark', or 'system'
+
+// Check if adaptive themes are enabled
+console.log(Uniwind.hasAdaptiveThemes) // e.g., true or false
+```
+
+### Using the useUniwind Hook
+
+For React components, use the `useUniwind` hook to access theme information and automatically re-render when the theme changes:
+
+```tsx  theme={null}
+import { useUniwind } from 'uniwind'
+import { View, Text } from 'react-native'
+
+export const ThemeDisplay = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  return (
+    <View className="p-4">
+      <Text className="text-lg font-bold">
+        Current theme: {theme}
+      </Text>
+      <Text className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+        {hasAdaptiveThemes ? 'Following system theme' : 'Fixed theme'}
+      </Text>
+    </View>
+  )
+}
+```
+
+## API Reference
+
+### Uniwind Global Object
+
+<ParamField path="setTheme" type="(themeName: string) => void">
+  Changes the active theme at runtime.
+
+  **Parameters:**
+
+  * `themeName`: The name of the theme to activate (`'light'`, `'dark'`, `'system'`, or a custom theme name)
+</ParamField>
+
+<ParamField path="currentTheme" type="string">
+  The name of the currently active theme.
+
+  **Returns:** `'light'`, `'dark'`, `'system'`, or a custom theme name
+</ParamField>
+
+<ParamField path="hasAdaptiveThemes" type="boolean">
+  Indicates whether adaptive themes are currently enabled.
+
+  **Returns:** `true` if adaptive themes are enabled, `false` otherwise
+</ParamField>
+
+## Using Theme Variants in ClassNames
+
+Apply different styles based on the active theme using the `dark:` variant:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const Card = () => (
+  <View className="
+    bg-white dark:bg-gray-800
+    border border-gray-200 dark:border-gray-700
+    p-6 rounded-lg
+    shadow-sm dark:shadow-lg
+  ">
+    <Text className="
+      text-gray-900 dark:text-white
+      text-lg font-bold
+    ">
+      Card Title
+    </Text>
+    <Text className="
+      text-gray-600 dark:text-gray-300
+      mt-2
+    ">
+      Card content adapts to the theme automatically
+    </Text>
+  </View>
+)
+```
+
+## Best Practices
+
+<Tip>
+  **Use semantic color names:** Instead of hardcoding colors, define theme-aware color tokens in your Tailwind config for better consistency.
+</Tip>
+
+<Tip>
+  **Test both themes:** Always test your UI in both light and dark themes to ensure proper contrast and readability.
+</Tip>
+
+<Warning>
+  **Avoid theme-specific logic in components:** Let the styling system handle theme switching. Keep your component logic theme-agnostic.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+    Learn how to create custom themes beyond light and dark
+  </Card>
+
+  <Card title="useUniwind Hook" icon="code" href="/api/use-uniwind">
+    Access theme information in your React components
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Define global CSS variables for your themes
+  </Card>
+
+  <Card title="Style Based on Themes" icon="paintbrush" href="/theming/style-based-on-themes">
+    Advanced theme-based styling techniques
+  </Card>
+</CardGroup>
+
+
+# Custom Themes
+Source: https://docs.uniwind.dev/theming/custom-themes
+
+Create and manage custom themes beyond light and dark in Uniwind
+
+## Overview
+
+While Uniwind provides `light` and `dark` themes by default, you can create unlimited custom themes for advanced use cases. Custom themes are perfect for branding variations, seasonal themes, accessibility modes, or any scenario where you need more than two color schemes.
+
+<Info>
+  Custom themes work exactly like the default themes, with full support for theme switching and CSS variable management.
+</Info>
+
+## Creating a Custom Theme
+
+Creating a custom theme involves two steps:
+
+1. Define theme-specific CSS variables in `global.css`
+2. Register the theme in `metro.config.js`
+
+### Step 1: Define Theme Variables in global.css
+
+Add your custom theme using the `@variant` directive. All themes must define the same set of variables.
+
+<Warning>
+  **Important:** Every theme must define the same CSS variables. If you add a variable to one theme, add it to all themes. Uniwind will warn you in `__DEV__` mode if variables are missing.
+</Warning>
+
+#### Example: Adding a "Premium" Theme
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    /* Dark theme variables */
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #ffffff;
+      --color-primary: #3b82f6;
+      --color-card: #1f2937;
+      --color-border: #374151;
+    }
+
+    /* Light theme variables */
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #000000;
+      --color-primary: #3b82f6;
+      --color-card: #ffffff;
+      --color-border: #e5e7eb;
+    }
+
+    /* Premium theme variables */
+    @variant premium {
+      --color-background: #1e1b4b;
+      --color-foreground: #fef3c7;
+      --color-primary: #fbbf24;
+      --color-card: #312e81;
+      --color-border: #4c1d95;
+    }
+  }
+}
+```
+
+### Step 2: Register Theme in metro.config.js
+
+Add your custom theme to the `extraThemes` array in your Metro configuration:
+
+```js metro.config.js theme={null}
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  dtsFile: './src/uniwind-types.d.ts',
+  extraThemes: ['premium'], // Register your custom theme here
+});
+```
+
+<Tip>
+  After adding a new theme, restart your Metro bundler for the changes to take effect.
+</Tip>
+
+### Step 3: Use Your Custom Theme
+
+Switch to your custom theme programmatically:
+
+```tsx  theme={null}
+import { Uniwind } from 'uniwind'
+
+// Switch to premium theme
+Uniwind.setTheme('premium')
+```
+
+## Complete Example: Multiple Custom Themes
+
+Here's a complete example with multiple custom themes for different use cases:
+
+### global.css with Multiple Themes
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    @variant dark {
+      --color-background: oklch(0.1316 0.0041 17.69);
+      --color-foreground: oklch(0.98 0 0);
+      --color-primary: oklch(0.6 0.2 240);
+      --color-card: oklch(0.2 0.01 240);
+      --color-border: oklch(0.3 0.02 240);
+    }
+
+    @variant light {
+      --color-background: oklch(1 0 0);
+      --color-foreground: oklch(0.2 0 0);
+      --color-primary: oklch(0.5 0.2 240);
+      --color-card: oklch(0.98 0 0);
+      --color-border: oklch(0.9 0.01 240);
+    }
+
+    /* Ocean theme - Cool blues and teals */
+    @variant ocean {
+      --color-background: oklch(0.25 0.05 220);
+      --color-foreground: oklch(0.95 0.02 200);
+      --color-primary: oklch(0.6 0.15 200);
+      --color-card: oklch(0.3 0.06 215);
+      --color-border: oklch(0.4 0.08 210);
+    }
+
+    /* Sunset theme - Warm oranges and purples */
+    @variant sunset {
+      --color-background: oklch(0.3 0.08 30);
+      --color-foreground: oklch(0.95 0.03 60);
+      --color-primary: oklch(0.65 0.18 40);
+      --color-card: oklch(0.35 0.1 25);
+      --color-border: oklch(0.45 0.12 35);
+    }
+
+    /* Forest theme - Natural greens */
+    @variant forest {
+      --color-background: oklch(0.2 0.05 150);
+      --color-foreground: oklch(0.95 0.02 140);
+      --color-primary: oklch(0.55 0.15 145);
+      --color-card: oklch(0.25 0.06 155);
+      --color-border: oklch(0.35 0.08 150);
+    }
+
+    /* High Contrast theme - Accessibility focused */
+    @variant high-contrast {
+      --color-background: oklch(0 0 0);
+      --color-foreground: oklch(1 0 0);
+      --color-primary: oklch(0.7 0.25 60);
+      --color-card: oklch(0.1 0 0);
+      --color-border: oklch(1 0 0);
+    }
+  }
+}
+```
+
+### metro.config.js with Multiple Themes
+
+```js metro.config.js theme={null}
+const { getDefaultConfig } = require('expo/metro-config');
+const { withUniwindConfig } = require('uniwind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: './src/global.css',
+  dtsFile: './src/uniwind-types.d.ts',
+  extraThemes: ['ocean', 'sunset', 'forest', 'high-contrast'],
+});
+```
+
+### Theme Switcher Component
+
+Create a theme switcher that includes your custom themes:
+
+```tsx ThemeSwitcher.tsx theme={null}
+import { View, Pressable, Text, ScrollView } from 'react-native'
+import { Uniwind, useUniwind } from 'uniwind'
+
+export const ThemeSwitcher = () => {
+  const { theme, hasAdaptiveThemes } = useUniwind()
+
+  const themes = [
+    { name: 'light', label: 'Light', icon: '☀️' },
+    { name: 'dark', label: 'Dark', icon: '🌙' },
+    { name: 'ocean', label: 'Ocean', icon: '🌊' },
+    { name: 'sunset', label: 'Sunset', icon: '🌅' },
+    { name: 'forest', label: 'Forest', icon: '🌲' },
+    { name: 'high-contrast', label: 'High Contrast', icon: '♿' },
+  ]
+  const activeTheme = hasAdaptiveThemes ? 'system' : theme
+
+  return (
+    <View className="p-4 gap-4">
+      <Text className="text-sm text-foreground">
+        Current: {activeTheme}
+      </Text>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View className="flex-row gap-2">
+          {themes.map((t) => (
+            <Pressable
+              key={t.name}
+              onPress={() => Uniwind.setTheme(t.name)}
+              className={`
+                px-4 py-3 rounded-lg items-center
+                ${activeTheme === t.name ? 'bg-primary' : 'bg-card border border-border'}
+              `}
+            >
+              <Text className={`text-2xl ${activeTheme === t.name ? 'text-white' : 'text-foreground'}`}>
+                {t.icon}
+              </Text>
+              <Text className={`text-xs mt-1 ${activeTheme === t.name ? 'text-white' : 'text-foreground'}`}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  )
+}
+```
+
+## Best Practices
+
+<Tip>
+  **Keep variable names consistent:** Use the same variable names across all themes. This ensures components look correct regardless of the active theme.
+</Tip>
+
+<Tip>
+  **Test all themes:** Always test your UI with every theme to ensure proper contrast and readability.
+</Tip>
+
+<Tip>
+  **Use OKLCH for better colors:** Consider using OKLCH color space for more perceptually uniform themes. See the [Global CSS](/theming/global-css) guide for details.
+</Tip>
+
+<Warning>
+  **Don't forget to restart Metro:** Changes to `metro.config.js` require a Metro bundler restart to take effect.
+</Warning>
+
+## Troubleshooting
+
+### Theme not appearing
+
+1. Check that the theme is registered in `extraThemes` array
+2. Verify all CSS variables are defined in the `@variant`
+3. Restart Metro bundler
+4. Clear Metro cache: `npx expo start --clear`
+
+### Missing styles
+
+1. Ensure all themes define the same set of CSS variables
+2. Check for typos in variable names
+3. Look for warnings in `__DEV__` mode about missing variables
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Learn the fundamentals of theming in Uniwind
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Configure global styles and CSS variables
+  </Card>
+
+  <Card title="useUniwind Hook" icon="code" href="/api/use-uniwind">
+    Access theme information in your React components
+  </Card>
+
+  <Card title="Style Based on Themes" icon="paintbrush" href="/theming/style-based-on-themes">
+    Advanced theme-based styling techniques
+  </Card>
+</CardGroup>
+
+
+# Global CSS
+Source: https://docs.uniwind.dev/theming/global-css
+
+Configure global styles, themes, and CSS variables in your Uniwind app
+
+## Overview
+
+The `global.css` file is the main entry point for Uniwind's styling system. It's where you import Tailwind and Uniwind, define theme-specific CSS variables, customize Tailwind's configuration, and add global styles for your entire application.
+
+<Info>
+  The `global.css` file must be imported in your app's entry point (usually `App.tsx`) for Uniwind to work correctly.
+</Info>
+
+## Required Imports
+
+Every `global.css` file must include these two essential imports:
+
+```css global.css theme={null}
+/* Required: Import Tailwind CSS */
+@import 'tailwindcss';
+
+/* Required: Import Uniwind */
+@import 'uniwind';
+```
+
+These imports enable:
+
+* All Tailwind utility classes
+* Uniwind's React Native compatibility layer
+* Theme-based variants (`dark:`, `light`)
+* Platform-specific variants (`ios:`, `android:`, `web:`)
+
+## Customizing Tailwind Configuration
+
+Use the `@theme` directive to customize Tailwind's default configuration values:
+
+### Modifying Design Tokens
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme {
+  /* Customize base font size */
+  --font-base: 15px;
+
+  /* Customize spacing scale */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+
+  /* Customize border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Add custom colors */
+  --color-primary: #3b82f6;
+  --color-secondary: #8b5cf6;
+  --color-accent: #ec4899;
+}
+```
+
+### Extending the Color Palette
+
+```css global.css theme={null}
+@theme {
+  /* Add brand colors */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+}
+```
+
+Usage:
+
+```tsx  theme={null}
+<View className="bg-brand-500 text-white p-4" />
+```
+
+## Theme-Specific Variables
+
+Define different CSS variable values for each theme using the `@layer theme` directive with `@variant`:
+
+### Basic Theme Variables
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    /* Dark theme variables */
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #ffffff;
+      --color-muted: #374151;
+      --color-border: #1f2937;
+    }
+
+    /* Light theme variables */
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #000000;
+      --color-muted: #f3f4f6;
+      --color-border: #e5e7eb;
+    }
+  }
+}
+```
+
+### Complete Theme System
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    @variant dark {
+      /* Backgrounds */
+      --color-background: #000000;
+      --color-background-secondary: #111827;
+      --color-card: #1f2937;
+
+      /* Text colors */
+      --color-foreground: #ffffff;
+      --color-foreground-secondary: #9ca3af;
+      --color-muted: #6b7280;
+
+      /* Borders */
+      --color-border: #374151;
+      --color-border-subtle: #1f2937;
+
+      /* Interactive elements */
+      --color-primary: #3b82f6;
+      --color-primary-hover: #2563eb;
+      --color-danger: #ef4444;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+    }
+
+    @variant light {
+      /* Backgrounds */
+      --color-background: #ffffff;
+      --color-background-secondary: #f9fafb;
+      --color-card: #ffffff;
+
+      /* Text colors */
+      --color-foreground: #111827;
+      --color-foreground-secondary: #6b7280;
+      --color-muted: #9ca3af;
+
+      /* Borders */
+      --color-border: #e5e7eb;
+      --color-border-subtle: #f3f4f6;
+
+      /* Interactive elements */
+      --color-primary: #3b82f6;
+      --color-primary-hover: #2563eb;
+      --color-danger: #ef4444;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+    }
+  }
+}
+```
+
+### OKLCH Color Support
+
+Uniwind supports modern [OKLCH color space](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch), which provides more perceptually uniform colors and better color manipulation compared to traditional RGB/HSL:
+
+```css global.css theme={null}
+@layer theme {
+  :root {
+    @variant dark {
+      --color-background: oklch(0.1316 0.0041 17.69);
+      --color-foreground: oklch(0.18 0.0033 17.46);
+      --color-primary: oklch(0 0 0);
+      --color-inverted: oklch(1 0 0);
+      --color-gray: oklch(0.452 0.0042 39.45);
+    }
+
+    @variant light {
+      --color-background: oklch(1 0 0);
+      --color-foreground: oklch(96.715% 0.00011 271.152);
+      --color-primary: oklch(1 0 0);
+      --color-inverted: oklch(0 0 0);
+      --color-gray: oklch(0.9612 0 0);
+    }
+  }
+}
+```
+
+**Benefits of OKLCH:**
+
+* **Perceptually uniform**: Colors that look equally bright to the human eye
+* **Wider color gamut**: Access to more vibrant colors on modern displays
+* **Better interpolation**: Smooth color transitions without muddy intermediate colors
+* **Consistent lightness**: Easier to create accessible color palettes
+
+<Tip>
+  Use [OKLCH Color Picker](https://oklch.com/) to explore and generate OKLCH colors for your theme.
+</Tip>
+
+### Using Theme Variables
+
+Once defined, reference your CSS variables directly as Tailwind utilities:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const ThemedCard = () => (
+  <View className="bg-card border border-border p-4 rounded-lg">
+    <Text className="text-foreground text-lg font-bold">
+      Card Title
+    </Text>
+    <Text className="text-foreground-secondary mt-2">
+      This card automatically adapts to the current theme
+    </Text>
+  </View>
+)
+```
+
+<Info>
+  No need to use `var()` or brackets! Simply use the variable name without the `--color-` prefix. For example, `--color-primary` becomes `bg-primary` or `text-primary`.
+</Info>
+
+## Custom Themes
+
+Define variables for custom themes beyond light and dark:
+
+```css global.css theme={null}
+@layer theme {
+  :root {
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #ffffff;
+    }
+
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #000000;
+    }
+
+    /* Custom ocean theme */
+    @variant ocean {
+      --color-background: #0c4a6e;
+      --color-foreground: #e0f2fe;
+      --color-primary: #06b6d4;
+      --color-accent: #67e8f9;
+    }
+
+    /* Custom sunset theme */
+    @variant sunset {
+      --color-background: #7c2d12;
+      --color-foreground: #fef3c7;
+      --color-primary: #f59e0b;
+      --color-accent: #fb923c;
+    }
+  }
+}
+```
+
+Learn more about custom themes in the [Custom Themes](/theming/custom-themes) guide.
+
+## Static Theme Variables
+
+If you need to define CSS variables that should always be available in JavaScript (via `useCSSVariable`) but aren't used in any `className`, use the `@theme static` directive:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme static {
+  /* Chart-specific values */
+  --chart-line-width: 2;
+  --chart-dot-radius: 4;
+  --chart-grid-color: rgba(0, 0, 0, 0.1);
+
+  /* Custom brand colors not used in classNames */
+  --color-al-teal-10: #eaeeee;
+  --color-al-teal-25: #cad4d5;
+  --color-al-teal-75: #607d81;
+  --color-al-teal-100: #2b5257;
+
+  /* Native module configuration values */
+  --map-zoom-level: 15;
+  --animation-duration: 300;
+}
+```
+
+### When to Use Static Variables
+
+<Info>
+  Variables defined in `@theme static` are always available via the [`useCSSVariable`](/api/use-css-variable) hook, even if they're never used in any `className`.
+</Info>
+
+Use `@theme static` for:
+
+* **Third-party library configuration**: Values needed for chart libraries, maps, or other JavaScript APIs
+* **Runtime calculations**: Design tokens used for JavaScript logic or animations
+* **Native module values**: Configuration passed to native modules
+* **JavaScript-only values**: Any CSS variable that should be accessible in JavaScript but doesn't need to generate Tailwind utilities
+
+### Example: Using Static Variables
+
+```tsx  theme={null}
+import { useCSSVariable } from 'uniwind'
+import { LineChart } from 'react-native-chart-kit'
+
+export const Chart = () => {
+  const lineWidth = useCSSVariable('--chart-line-width')
+  const dotRadius = useCSSVariable('--chart-dot-radius')
+  const gridColor = useCSSVariable('--chart-grid-color')
+
+  return (
+    <LineChart
+      data={data}
+      chartConfig={{
+        strokeWidth: lineWidth,
+        dotRadius: dotRadius,
+        color: () => gridColor,
+      }}
+    />
+  )
+}
+```
+
+<Tip>
+  You can use any valid CSS in `global.css`. For more information, check the [CSS Parser](/api/css) documentation.
+</Tip>
+
+## Best Practices
+
+<Tip>
+  **Use semantic variable names:** Name variables based on their purpose (e.g., `--color-background`, `--color-primary`) rather than their value (e.g., `--color-blue-500`).
+</Tip>
+
+<Tip>
+  **Keep theme variables consistent:** Ensure all themes define the same set of variables. If you miss a variable in one theme, we will warn you about it in `__DEV__` mode.
+</Tip>
+
+<Warning>
+  **Avoid hard-coded colors in components:** Use CSS variables for colors that should adapt to themes. This ensures your UI remains consistent across theme changes.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="useCSSVariable" icon="code" href="/api/use-css-variable">
+    Access CSS variable values in JavaScript
+  </Card>
+
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Learn the fundamentals of theming in Uniwind
+  </Card>
+
+  <Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+    Create and manage custom themes
+  </Card>
+
+  <Card title="CSS Parser" icon="code" href="/api/css">
+    Learn about Uniwind's CSS parsing capabilities
+  </Card>
+
+  <Card title="Style Based on Themes" icon="paintbrush" href="/theming/style-based-on-themes">
+    Advanced theme-based styling techniques
+  </Card>
+</CardGroup>
+
+
+# Style Based on Themes
+Source: https://docs.uniwind.dev/theming/style-based-on-themes
+
+Learn different approaches to create theme-aware styles in Uniwind
+
+## Overview
+
+Uniwind provides two approaches for creating theme-aware styles: using theme variant prefixes (like `dark:`) or defining CSS variables with `@layer theme`. Each approach has its use cases and benefits.
+
+## Approach 1: Theme Variant Prefixes
+
+The simplest way to style components based on themes is using the `dark:` variant prefix.
+
+### Basic Usage
+
+By default, styles apply to all themes:
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+// This red background applies to both light and dark themes
+<View className="bg-red-500" />
+```
+
+Add theme-specific styles using the `dark:` prefix:
+
+```tsx  theme={null}
+import { View } from 'react-native'
+
+// Red in light mode, darker red in dark mode
+<View className="bg-red-500 dark:bg-red-600" />
+```
+
+### Multiple Theme-Specific Styles
+
+You can combine multiple theme-aware utilities:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const Card = () => (
+  <View className="
+    bg-white dark:bg-gray-900
+    border border-gray-200 dark:border-gray-700
+    shadow-sm dark:shadow-lg
+    p-4 rounded-lg
+  ">
+    <Text className="
+      text-gray-900 dark:text-white
+      text-lg font-bold
+    ">
+      Card Title
+    </Text>
+    <Text className="
+      text-gray-600 dark:text-gray-300
+      mt-2
+    ">
+      Card description with theme-aware colors
+    </Text>
+  </View>
+)
+```
+
+### When to Use Theme Variant Prefixes
+
+<Tip>
+  **Best for:** One-off styling, prototyping, or small components where you want explicit control over light and dark mode colors.
+</Tip>
+
+**Pros:**
+
+* Explicit and easy to understand
+* No setup required
+* Full control over each theme's appearance
+* Works great for small apps or prototypes
+
+**Cons:**
+
+* Verbose for larger apps
+* Requires repeating `dark:` prefix for many properties
+* Difficult to maintain consistent colors across components
+* Doesn't scale well to 3+ themes
+
+## Approach 2: CSS Variables with @layer theme
+
+For larger applications, defining theme-specific CSS variables provides a more scalable and maintainable solution.
+
+### Setting Up CSS Variables
+
+Define your theme variables in `global.css`:
+
+```css global.css theme={null}
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #ffffff;
+      --color-card: #1f2937;
+      --color-border: #374151;
+      --color-muted: #6b7280;
+    }
+
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #000000;
+      --color-card: #ffffff;
+      --color-border: #e5e7eb;
+      --color-muted: #9ca3af;
+    }
+  }
+}
+```
+
+### Using CSS Variables
+
+Reference your variables directly in components:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const Card = () => (
+  <View className="bg-card border border-border p-4 rounded-lg">
+    <Text className="text-foreground text-lg font-bold">
+      Card Title
+    </Text>
+    <Text className="text-muted mt-2">
+      Card description that automatically adapts to the theme
+    </Text>
+  </View>
+)
+```
+
+<Info>
+  `bg-background` automatically resolves to `#ffffff` in light theme and `#000000` in dark theme. No `dark:` prefix needed!
+</Info>
+
+### When to Use CSS Variables
+
+<Tip>
+  **Best for:** Medium to large applications, design systems, or apps with consistent color palettes across many components.
+</Tip>
+
+**Pros:**
+
+* Clean, maintainable code
+* Consistent colors across the entire app
+* Easy to update themes in one place
+* Scales well to any number of themes
+* Semantic naming improves code readability
+
+**Cons:**
+
+* Requires initial setup
+* Less explicit than variant prefixes
+* Need to define all variables upfront
+
+## Supporting Multiple Themes
+
+CSS variables make it easy to support unlimited custom themes:
+
+```css global.css theme={null}
+@layer theme {
+  :root {
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #ffffff;
+      --color-primary: #3b82f6;
+    }
+
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #000000;
+      --color-primary: #3b82f6;
+    }
+
+    @variant ocean {
+      --color-background: #0c4a6e;
+      --color-foreground: #e0f2fe;
+      --color-primary: #06b6d4;
+    }
+
+    @variant sunset {
+      --color-background: #7c2d12;
+      --color-foreground: #fef3c7;
+      --color-primary: #f59e0b;
+    }
+  }
+}
+```
+
+Components using these variables automatically work with all themes:
+
+```tsx  theme={null}
+import { View, Text } from 'react-native'
+
+export const ThemedComponent = () => (
+  <View className="bg-background p-4">
+    <Text className="text-foreground">
+      This component works with light, dark, ocean, and sunset themes!
+    </Text>
+    <View className="bg-primary mt-4 p-2 rounded">
+      <Text className="text-background">Primary action</Text>
+    </View>
+  </View>
+)
+```
+
+<Tip>
+  To register additional themes, follow the [Custom Themes](/theming/custom-themes) guide.
+</Tip>
+
+## Migration Guide
+
+### From Theme Variants to CSS Variables
+
+1. **Identify repeated colors** across your components
+2. **Define CSS variables** for these colors in `global.css`
+3. **Replace theme variants** with CSS variable references
+4. **Test thoroughly** in all themes
+
+Example migration:
+
+```tsx  theme={null}
+// Before: Using theme variants
+<View className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+  <Text className="text-gray-900 dark:text-white">Hello</Text>
+</View>
+
+// After: Using CSS variables
+<View className="bg-card border border-border">
+  <Text className="text-foreground">Hello</Text>
+</View>
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Theming Basics" icon="palette" href="/theming/basics">
+    Learn the fundamentals of theming in Uniwind
+  </Card>
+
+  <Card title="Global CSS" icon="css" href="/theming/global-css">
+    Configure global styles and CSS variables
+  </Card>
+
+  <Card title="Custom Themes" icon="swatchbook" href="/theming/custom-themes">
+    Create custom themes beyond light and dark
+  </Card>
+
+  <Card title="useUniwind Hook" icon="code" href="/api/use-uniwind">
+    Access theme information in your components
+  </Card>
+</CardGroup>

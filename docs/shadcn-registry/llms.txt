@@ -1,0 +1,8 @@
+## Registry
+
+- [Registry Overview](https://ui.shadcn.com/docs/registry.md): Creating and publishing your own component registry.
+- [Getting Started](https://ui.shadcn.com/docs/registry/getting-started.md): Set up your own registry.
+- [Examples](https://ui.shadcn.com/docs/registry/examples.md): Example registries.
+- [FAQ](https://ui.shadcn.com/docs/registry/faq.md): Common questions about registries.
+- [Authentication](https://ui.shadcn.com/docs/registry/authentication.md): Adding authentication to your registry.
+- [Registry MCP](https://ui.shadcn.com/docs/registry/mcp.md): MCP integration for registries.

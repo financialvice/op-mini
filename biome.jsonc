@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite/core", "ultracite/next", "ultracite/react"],
+  "files": {
+    "includes": ["**", "!apps/mobile/.rnstorybook/storybook.requires.ts"]
+  },
+  "javascript": {
+    "globals": ["__DEV__"]
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        "useSemanticElements": "off",
+        "useFocusableInteractive": "off",
+        "useAriaPropsForRole": "off"
+      },
+      "correctness": {
+        "noInvalidPositionAtImportRule": "off",
+        "useImageSize": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "nursery": {
+        "noIncrementDecrement": "off"
+      },
+      "performance": {
+        "noNamespaceImport": "off",
+        "noBarrelFile": "off",
+        "noImgElement": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useConsistentTypeDefinitions": "off"
+      },
+      "suspicious": {
+        "noAlert": "off",
+        "noDuplicateCustomProperties": "off"
+      }
+    }
+  }
+}

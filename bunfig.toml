@@ -1,0 +1,10 @@
+[install]
+# our project uses bun's new isolated linker package installation strategy
+# this creates strict dependency isolation similar to pnpm's approach
+# this prevents phantom dependencies and ensures reproducible, deterministic builds
+# this is better for monorepos, since it enables workspace isolation which prevents cross-contamination between packages
+# read more: https://bun.com/docs/install/isolated
+linker = "isolated"
+# https://bun.com/blog/bun-v1.3.1#publichoistpattern-and-hoistpattern
+# https://docs.sentry.io/platforms/javascript/guides/nextjs/troubleshooting
+publicHoistPattern = [ "*import-in-the-middle*", "*require-in-the-middle*" ]

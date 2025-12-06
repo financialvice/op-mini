@@ -1,0 +1,26 @@
+{
+  "name": "@repo/tasks",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check . --unsafe --write",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./trigger": {
+      "default": "./src/trigger/index.ts"
+    }
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@trigger.dev/build": "catalog:"
+  }
+}

@@ -1,0 +1,38 @@
+appId: com.site.mobile
+---
+- launchApp:
+    clearState: true
+
+# Wait for login screen to load
+- assertVisible: "Welcome back"
+- assertVisible: "Enter your email to receive a login code."
+
+# Enter email
+- tapOn: "you@example.com"
+- inputText: "cam@camglynn.com"
+
+# Take screenshot for debugging
+- takeScreenshot: email_entered
+
+# Submit email to get magic code
+- tapOn:
+    id: "send-code-button"
+
+# Wait for code entry step
+- extendedWaitUntil:
+    visible: "Login code"
+    timeout: 10000
+- assertVisible: "Enter the code we sent to cam@camglynn.com."
+
+# Enter verification code
+- tapOn: "Login code"
+- inputText: "123456"
+- hideKeyboard
+
+# Submit code
+- tapOn: "Verify code"
+
+# Verify successful login (user should be redirected to main app)
+- extendedWaitUntil:
+    notVisible: "Welcome back"
+    timeout: 10000

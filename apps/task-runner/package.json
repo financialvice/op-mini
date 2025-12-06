@@ -1,0 +1,24 @@
+{
+  "name": "task-runner",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy:trigger": "trigger deploy",
+    "dev": "trigger dev",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --unsafe --write",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module",
+  "dependencies": {
+    "@repo/tasks": "workspace:*",
+    "@sentry/esbuild-plugin": "catalog:",
+    "@sentry/node": "catalog:",
+    "@trigger.dev/sdk": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@trigger.dev/build": "catalog:",
+    "trigger.dev": "catalog:"
+  }
+}
