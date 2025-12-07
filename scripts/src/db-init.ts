@@ -24,7 +24,7 @@ async function createApp(
 
   // Use init-without-files for non-interactive app creation
   const result =
-    await $`bunx instant-cli init-without-files --title ${title} -y`.text();
+    await $`bunx instant-cli@latest init-without-files --title ${title} -y`.text();
 
   // Parse JSON output
   try {

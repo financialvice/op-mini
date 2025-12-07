@@ -8,13 +8,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@repo/ui/components/sidebar";
-import { Home } from "lucide-react";
+import { BookTemplateIcon, Home } from "lucide-react";
 
 const items = [
   {
     title: "Home",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: BookTemplateIcon,
   },
 ];
 

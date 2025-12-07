@@ -13,6 +13,7 @@
   "dependencies": {
     "@hookform/resolvers": "catalog:",
     "@instantdb/admin": "catalog:",
+    "@instantdb/react": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",
@@ -22,7 +23,9 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
+    "@xyflow/react": "^12.10.0",
     "lucide-react": "catalog:",
+    "morphcloud": "^0.0.20",
     "next": "catalog:",
     "posthog-js": "catalog:",
     "posthog-node": "catalog:",

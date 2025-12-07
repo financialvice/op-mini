@@ -184,6 +184,7 @@
       "vaul": "1.1.2",
       "vite-tsconfig-paths": "5.1.4",
       "vitest": "3.2.4",
+      "morphcloud": "latest",
       "zod": "4.1.12",
       "zustand": "5.0.7"
     },

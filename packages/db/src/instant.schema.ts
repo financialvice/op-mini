@@ -21,139 +21,29 @@ const _schema = i.schema({
     $users: i.entity({
       email: i.string().unique().indexed().optional(),
     }),
-    /*
-     * We CANNOT add ATTRIBUTES to the '$users' entity (it is a special system-level entity)
-     *
-     * To add user-specific attributes (tied 1:1 with a $user), we can add attributes to our own userProfiles entity.
-     *
-     * We CAN add LINKS to the '$users' entity, so when linking to the concept of a 'user', we should link to '$users', NOT 'userProfiles'.
-     */
-    userProfiles: i.entity({
-      firstName: i.string(),
-      lastName: i.string(),
+    oauthTokens: i.entity({
+      token: i.string(),
+      refreshToken: i.string().optional(),
+      expiresAt: i.date().optional(),
     }),
-    notificationTokens: i.entity({
-      token: i.string().unique().indexed(),
-      deviceId: i.string().optional(),
-      createdAt: i.date().indexed(),
+    instantDbOrgs: i.entity({
+      orgId: i.string(),
     }),
-    notifications: i.entity({
-      type: i.string().indexed(),
-      title: i.string(),
-      body: i.string(),
-      data: i.json().optional(),
-      createdAt: i.date().indexed(),
-      readAt: i.date().optional(),
-      dismissedAt: i.date().optional(),
+    instantDbApps: i.entity({
+      appId: i.string(),
+      adminToken: i.string(),
     }),
-    notificationDeliveries: i.entity({
-      channel: i.string().indexed(),
-      status: i.string(),
-      target: i.string().optional(),
-      providerMessageId: i.string().optional(),
-      providerError: i.string().optional(),
-      createdAt: i.date().indexed(),
-      deliveredAt: i.date().optional(),
-    }),
-    products: i.entity({
+    vercelTeams: i.entity({}),
+    githubRepos: i.entity({
       name: i.string(),
-      description: i.string(),
-      price: i.number().optional(), // null for custom amount products
-      currency: i.string(), // e.g. "usd"
-      sku: i.string().unique().indexed(),
-      platform: i.string().indexed(), // "web" | "mobile" | "both"
-      active: i.boolean().indexed(),
-      createdAt: i.date().indexed(),
     }),
-    purchases: i.entity({
-      productType: i.string().indexed(), // "fixed" | "custom"
-      amount: i.number(), // amount in cents
-      currency: i.string(), // e.g. "usd"
-      platform: i.string().indexed(), // "web" | "ios" | "android"
-      provider: i.string().indexed(), // "stripe" | "revenuecat"
-      status: i.string().indexed(), // "pending" | "completed" | "failed"
-      providerTransactionId: i.string().optional(),
-      metadata: i.json().optional(), // additional provider-specific data
-      createdAt: i.date().indexed(),
-      completedAt: i.date().optional(),
+    machines: i.entity({
+      morphInstanceId: i.string().unique().indexed().optional(),
     }),
+    sessions: i.entity({}),
+    messsages: i.entity({}),
   },
-  links: {
-    // each user has exactly one profile
-    userProfile_user$: {
-      forward: {
-        on: "userProfiles",
-        label: "$user",
-        has: "one",
-        required: true,
-      },
-      reverse: { on: "$users", label: "profile", has: "one" },
-    },
-
-    // each profile may have one avatar file
-    userProfile_avatar$file: {
-      forward: { on: "userProfiles", label: "avatar$file", has: "one" },
-      reverse: { on: "$files", label: "avatarOfUserProfile", has: "one" },
-    },
-
-    // each user can have many notification tokens (multiple devices)
-    notificationToken_user$: {
-      forward: {
-        on: "notificationTokens",
-        label: "$user",
-        has: "one",
-        required: true,
-      },
-      reverse: { on: "$users", label: "notificationTokens", has: "many" },
-    },
-
-    // each user can have many notifications
-    notification_user$: {
-      forward: {
-        on: "notifications",
-        label: "$user",
-        has: "one",
-        required: true,
-      },
-      reverse: { on: "$users", label: "notifications", has: "many" },
-    },
-
-    // each notification can have many deliveries
-    notificationDelivery_notification: {
-      forward: {
-        on: "notificationDeliveries",
-        label: "notification",
-        has: "one",
-        required: true,
-      },
-      reverse: {
-        on: "notifications",
-        label: "deliveries",
-        has: "many",
-      },
-    },
-
-    // each purchase belongs to a user
-    purchase_user$: {
-      forward: {
-        on: "purchases",
-        label: "$user",
-        has: "one",
-        required: true,
-      },
-      reverse: { on: "$users", label: "purchases", has: "many" },
-    },
-
-    // each purchase optionally links to a product (null for custom amounts)
-    purchase_product: {
-      forward: {
-        on: "purchases",
-        label: "product",
-        has: "one",
-      },
-      reverse: { on: "products", label: "purchases", has: "many" },
-    },
-  },
+  links: {},
   rooms: {},
 });
 
