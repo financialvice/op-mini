@@ -185,6 +185,10 @@
       "vite-tsconfig-paths": "5.1.4",
       "vitest": "3.2.4",
       "morphcloud": "latest",
+      "ssh2": "1.16.0",
+      "@types/ssh2": "1.15.1",
+      "@xterm/xterm": "5.5.0",
+      "@xterm/addon-fit": "0.10.0",
       "zod": "4.1.12",
       "zustand": "5.0.7"
     },

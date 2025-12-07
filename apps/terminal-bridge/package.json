@@ -15,9 +15,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "morphcloud": "catalog:"
+    "morphcloud": "catalog:",
+    "ssh2": "catalog:"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "@types/ssh2": "catalog:"
   }
 }

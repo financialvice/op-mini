@@ -40,7 +40,7 @@ export const morphRouter = t.router({
           instance = await morph.instances.start({
             snapshotId: buildSnapshot.id,
             ttlSeconds: 1800, // 30 minutes
-            ttlAction: "stop", // delete
+            ttlAction: "pause", // delete
             metadata: {
               type: "template-build",
               name: input.name,
@@ -90,7 +90,9 @@ export const morphRouter = t.router({
             createdAt: new Date().toISOString(),
           });
 
-          await instance.pause();
+          await morph.POST(`/instance/${instance.id}/pause`, {
+            snapshot: false,
+          });
 
           await buildSnapshot.delete();
 

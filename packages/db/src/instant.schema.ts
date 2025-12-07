@@ -22,9 +22,12 @@ const _schema = i.schema({
       email: i.string().unique().indexed().optional(),
     }),
     oauthTokens: i.entity({
-      token: i.string(),
+      provider: i.string(),
+      accessToken: i.string(),
       refreshToken: i.string().optional(),
       expiresAt: i.date().optional(),
+      lastRefreshedAt: i.date().optional(),
+      createdAt: i.date().indexed(),
     }),
     instantDbOrgs: i.entity({
       orgId: i.string(),
@@ -43,7 +46,20 @@ const _schema = i.schema({
     sessions: i.entity({}),
     messsages: i.entity({}),
   },
-  links: {},
+  links: {
+    userOAuthTokens: {
+      forward: {
+        on: "oauthTokens",
+        has: "one",
+        label: "user",
+      },
+      reverse: {
+        on: "$users",
+        has: "many",
+        label: "oauthTokens",
+      },
+    },
+  },
   rooms: {},
 });
 

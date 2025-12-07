@@ -28,15 +28,22 @@ export const devboxTemplate: MachineTemplate = [
   "apt-get update",
   "apt-get install -y nodejs",
 
-  // Install Bun
+  // Install Bun and configure PATH for all shell types
   "curl -fsSL https://bun.sh/install | bash",
-  'export BUN_INSTALL="$HOME/.bun"',
-  'export PATH="$BUN_INSTALL/bin:$PATH"',
-  "echo 'export BUN_INSTALL=\"$HOME/.bun\"' >> ~/.bashrc",
-  "echo 'export PATH=\"$BUN_INSTALL/bin:$PATH\"' >> ~/.bashrc",
+  `cat >> ~/.profile << 'EOF'
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+EOF`,
+  `cat >> ~/.bashrc << 'EOF'
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+EOF`,
 
-  // Install pm2 globally via bun
+  // Install pm2 globally via bun (using absolute path since PATH isn't set in this session)
   "$HOME/.bun/bin/bun install -g pm2",
+
+  // Install AI coding assistants globally via bun
+  "$HOME/.bun/bin/bun install -g @anthropic-ai/claude-code @openai/codex",
 
   // Clean up apt cache to save disk space
   "apt-get clean",

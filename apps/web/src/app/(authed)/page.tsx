@@ -344,6 +344,13 @@ function InstanceRow({ instance }: { instance: Instance }) {
         >
           ⑂
         </button>
+        <a
+          className="text-green-500 hover:text-green-400"
+          href={`/terminal/${instance.id}?provider=morph`}
+          title="Open terminal"
+        >
+          &gt;_
+        </a>
       </div>
     </div>
   );
@@ -353,7 +360,16 @@ function ServerRow({ server }: { server: Server }) {
   return (
     <div className="flex h-6 items-center justify-between gap-1 rounded border px-1 font-mono text-xs">
       <span className="truncate">{server.name}</span>
-      <span className="text-gray-500">{server.public_net.ipv4.ip}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-gray-500">{server.public_net.ipv4.ip}</span>
+        <a
+          className="text-green-500 hover:text-green-400"
+          href={`/terminal/${server.id}`}
+          title="Open terminal"
+        >
+          &gt;_
+        </a>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import type {
-  InstantConfig,
-  InstantReactAbstractDatabase,
+import {
+  type InstantConfig,
+  type InstantReactAbstractDatabase,
+  id as newId,
 } from "@instantdb/react";
 import { useEffect } from "react";
 import type { AppSchema } from "./instant.schema";
@@ -54,12 +55,112 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     );
   }
 
+  /*
+   * OAuth Token Management
+   */
+  const useOAuthToken = (provider: string) => {
+    const { id } = client.useUser();
+    const { data, isLoading, error } = client.useQuery({
+      oauthTokens: {
+        $: {
+          where: {
+            "user.id": id,
+            provider,
+          },
+          order: { createdAt: "desc" },
+          limit: 1,
+        },
+      },
+    });
+
+    const token = data?.oauthTokens?.at(0);
+    const isExpired = token?.expiresAt
+      ? new Date(token.expiresAt) < new Date()
+      : false;
+
+    return {
+      token,
+      isExpired,
+      isLoading,
+      error,
+    };
+  };
+
+  const saveOAuthToken = async (
+    userId: string,
+    tokenData: {
+      provider: string;
+      accessToken: string;
+      refreshToken: string;
+      expiresIn: number;
+    }
+  ) => {
+    if (!userId) {
+      return;
+    }
+
+    const tokenId = newId();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + tokenData.expiresIn * 1000);
+
+    await client.transact([
+      client.tx.oauthTokens[tokenId]!.create({
+        provider: tokenData.provider,
+        accessToken: tokenData.accessToken,
+        refreshToken: tokenData.refreshToken,
+        expiresAt,
+        createdAt: now,
+      }).link({
+        user: userId,
+      }),
+    ]);
+
+    return tokenId;
+  };
+
+  const updateOAuthToken = async (
+    tokenId: string,
+    tokenData: {
+      accessToken: string;
+      refreshToken: string;
+      expiresIn: number;
+    }
+  ) => {
+    if (!tokenId) {
+      return;
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + tokenData.expiresIn * 1000);
+
+    await client.transact([
+      client.tx.oauthTokens[tokenId]!.update({
+        accessToken: tokenData.accessToken,
+        refreshToken: tokenData.refreshToken,
+        expiresAt,
+        lastRefreshedAt: now,
+      }),
+    ]);
+  };
+
+  const deleteOAuthToken = async (tokenId: string) => {
+    if (!tokenId) {
+      return;
+    }
+
+    await client.transact([client.tx.oauthTokens[tokenId]!.delete()]);
+  };
+
   return {
     useAuth: () => client.useAuth(),
     useUser: () => client.useUser(),
     auth: client.auth,
     SignedIn: client.SignedIn,
     SignedOut: client.SignedOut,
+    useOAuthToken,
+    saveOAuthToken,
+    updateOAuthToken,
+    deleteOAuthToken,
     RedirectSignedOut,
     RedirectSignedIn,
     Redirect,
