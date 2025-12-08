@@ -19,6 +19,7 @@ import {
 import {
   CheckCircle,
   ExternalLink,
+  Github,
   Key,
   Loader2,
   RefreshCw,
@@ -27,8 +28,10 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { CodexImportCard } from "./codex-import";
+import { VercelImportCard } from "./vercel-import";
 
 const CLAUDE_PROVIDER = "claude";
+const GITHUB_PROVIDER = "github";
 
 // Claude Max OAuth config (Anthropic's official client)
 const OAUTH_CONFIG = {
@@ -523,6 +526,93 @@ function ClaudeOAuthSection() {
   );
 }
 
+function GitHubOAuthSection() {
+  const { id: userId } = db.useUser();
+  const { token: storedToken, isLoading } = db.useOAuthToken(GITHUB_PROVIDER);
+
+  const handleConnect = useCallback(() => {
+    if (!userId) {
+      return;
+    }
+    window.location.href = `/api/oauth/github?userId=${userId}`;
+  }, [userId]);
+
+  const handleDisconnect = useCallback(async () => {
+    if (!storedToken?.id) {
+      return;
+    }
+    await db.deleteOAuthToken(storedToken.id);
+  }, [storedToken?.id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (storedToken) {
+    return (
+      <Card className="border-green-500">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="size-5 text-green-500" />
+            GitHub Connected
+          </CardTitle>
+          <CardDescription>
+            Your GitHub account is connected. The gh CLI will work in terminal
+            sessions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <span className="font-medium text-sm">Access Token</span>
+            <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-3 font-mono text-xs">
+              {storedToken.accessToken.slice(0, 20)}...
+            </pre>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleConnect} type="button" variant="outline">
+              <RefreshCw className="mr-2 size-4" />
+              Reconnect
+            </Button>
+            <Button
+              onClick={handleDisconnect}
+              type="button"
+              variant="destructive"
+            >
+              <Trash2 className="mr-2 size-4" />
+              Disconnect
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Github className="size-5" />
+          Connect GitHub
+        </CardTitle>
+        <CardDescription>
+          Connect your GitHub account to use the gh CLI in terminal sessions and
+          enable AI agents to interact with your repositories.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button onClick={handleConnect} type="button">
+          <Github className="mr-2 size-4" />
+          Connect GitHub
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function OAuthPlaygroundPage() {
   return (
     <div className="container mx-auto max-w-2xl space-y-6 p-6">
@@ -535,15 +625,23 @@ export default function OAuthPlaygroundPage() {
       </div>
 
       <Tabs className="w-full" defaultValue="claude">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="claude">Claude Max</TabsTrigger>
-          <TabsTrigger value="codex">Codex (ChatGPT)</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="claude">Claude</TabsTrigger>
+          <TabsTrigger value="codex">Codex</TabsTrigger>
+          <TabsTrigger value="github">GitHub</TabsTrigger>
+          <TabsTrigger value="vercel">Vercel</TabsTrigger>
         </TabsList>
         <TabsContent className="mt-4" value="claude">
           <ClaudeOAuthSection />
         </TabsContent>
         <TabsContent className="mt-4" value="codex">
           <CodexImportCard />
+        </TabsContent>
+        <TabsContent className="mt-4" value="github">
+          <GitHubOAuthSection />
+        </TabsContent>
+        <TabsContent className="mt-4" value="vercel">
+          <VercelImportCard />
         </TabsContent>
       </Tabs>
     </div>

@@ -26,6 +26,8 @@ export default function TerminalPage() {
 
   const { token: claudeToken } = db.useOAuthToken("claude");
   const { token: codexToken } = db.useOAuthToken("codex");
+  const { token: githubToken } = db.useOAuthToken("github");
+  const { token: vercelToken } = db.useOAuthToken("vercel");
 
   // Keep morph instances alive by refreshing TTL every 30 seconds
   const instanceId = params.serverId ?? "";
@@ -43,8 +45,18 @@ export default function TerminalPage() {
     if (claudeToken?.accessToken) {
       vars.CLAUDE_CODE_OAUTH_TOKEN = claudeToken.accessToken;
     }
+    if (githubToken?.accessToken) {
+      vars.GH_TOKEN = githubToken.accessToken;
+    }
+    if (vercelToken?.accessToken) {
+      vars.VERCEL_TOKEN = vercelToken.accessToken;
+    }
     return vars;
-  }, [claudeToken?.accessToken]);
+  }, [
+    claudeToken?.accessToken,
+    githubToken?.accessToken,
+    vercelToken?.accessToken,
+  ]);
 
   // Write config files for headless operation of AI coding assistants
   const files = useMemo<FileToWrite[]>(() => {

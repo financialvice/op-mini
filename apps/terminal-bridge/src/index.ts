@@ -84,6 +84,10 @@ function applySessionSetup(ws: ServerWebSocket<TerminalSocketData>): void {
       const escaped = value.replace(/'/g, "'\\''");
       shell.write(`export ${key}='${escaped}'\n`);
     }
+    // Vercel CLI doesn't auto-read VERCEL_TOKEN, so add alias to pass it explicitly
+    if (env.VERCEL_TOKEN) {
+      shell.write(`alias vercel='vercel --token "$VERCEL_TOKEN"'\n`);
+    }
   }
 
   // Write files
