@@ -4,6 +4,7 @@ import { db } from "@repo/db";
 import { SidebarProvider } from "@repo/ui/components/sidebar";
 import { useRouter } from "next/navigation";
 import { AppSidebar } from "../../components/app-sidebar";
+import { StatusBar } from "../../components/status-bar";
 
 export default function AuthedLayout({
   children,
@@ -18,9 +19,10 @@ export default function AuthedLayout({
       <db.SignedIn>
         <SidebarProvider>
           <AppSidebar />
-          <main className="relative h-screen flex-1 overflow-hidden">
+          <main className="relative h-screen flex-1 overflow-hidden pb-6">
             {children}
           </main>
+          <StatusBar />
         </SidebarProvider>
       </db.SignedIn>
     </>

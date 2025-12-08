@@ -48,18 +48,11 @@ export default function HomePage() {
   const { data: hetznerTemplates } = useQuery(
     trpc.hetzner.templates.list.queryOptions()
   );
-  const { data: statsData } = useQuery({
-    ...trpc.morph.stats.queryOptions(),
-    refetchInterval: 5000, // Poll every 5 seconds
-  });
   const { mutateAsync: createInstance } = useMutation(
     trpc.morph.instances.create.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: trpc.morph.instances.list.queryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: trpc.morph.stats.queryKey(),
         });
       },
     })
@@ -70,9 +63,6 @@ export default function HomePage() {
         queryClient.invalidateQueries({
           queryKey: trpc.morph.snapshots.list.queryKey(),
         });
-        queryClient.invalidateQueries({
-          queryKey: trpc.morph.stats.queryKey(),
-        });
       },
     })
   );
@@ -82,9 +72,6 @@ export default function HomePage() {
         queryClient.invalidateQueries({
           queryKey: trpc.morph.instances.list.queryKey(),
         });
-        queryClient.invalidateQueries({
-          queryKey: trpc.morph.stats.queryKey(),
-        });
       },
     })
   );
@@ -93,9 +80,6 @@ export default function HomePage() {
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: trpc.morph.instances.list.queryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: trpc.morph.stats.queryKey(),
         });
       },
     })
@@ -118,40 +102,6 @@ export default function HomePage() {
   );
   return (
     <div className="flex flex-col items-start gap-4 p-2">
-      {statsData && (
-        <div className="flex w-full gap-4 rounded border p-2 font-mono text-xs">
-          <div className="flex flex-col">
-            <span className="text-gray-500">Snapshots</span>
-            <span className="text-lg">{statsData.snapshotCount}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">Running</span>
-            <span className="text-green-500 text-lg">
-              {statsData.runningInstanceCount}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">Paused</span>
-            <span className="text-blue-500 text-lg">
-              {statsData.pausedInstanceCount}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">Usage (24h)</span>
-            <span className="text-lg">
-              {(
-                (statsData.usage.instance.cpuTime +
-                  statsData.usage.instance.memoryTime +
-                  statsData.usage.instance.diskTime +
-                  statsData.usage.snapshot.memoryTime +
-                  statsData.usage.snapshot.diskTime) *
-                statsData.usage.mcuRate
-              ).toFixed(2)}{" "}
-              MCU
-            </span>
-          </div>
-        </div>
-      )}
       <h1>Machines</h1>
       <button
         onClick={async () => {
