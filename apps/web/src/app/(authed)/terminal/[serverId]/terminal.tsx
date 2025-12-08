@@ -74,7 +74,7 @@ export function TerminalComponent({
       return () => observer.disconnect();
     }
 
-    openTerminal();
+    let cleanup: (() => void) | undefined;
 
     function openTerminal() {
       if (!(terminal && fitAddon && containerRef.current)) {
@@ -83,86 +83,100 @@ export function TerminalComponent({
 
       terminal.open(containerRef.current);
 
-      // Delay fit() to ensure DOM is ready
+      // Fit first, then connect with initial dimensions
       requestAnimationFrame(() => {
         fitAddon.fit();
-      });
+        const { cols, rows } = terminal;
 
-      const envParam =
-        env && Object.keys(env).length > 0
-          ? `&env=${encodeURIComponent(JSON.stringify(env))}`
-          : "";
-      const filesParam =
-        files && files.length > 0
-          ? `&files=${encodeURIComponent(JSON.stringify(files))}`
-          : "";
-      const ws = new WebSocket(
-        `${BRIDGE_URL}/terminal?provider=${provider}&machineId=${machineId}${envParam}${filesParam}`
-      );
+        const envParam =
+          env && Object.keys(env).length > 0
+            ? `&env=${encodeURIComponent(JSON.stringify(env))}`
+            : "";
+        const filesParam =
+          files && files.length > 0
+            ? `&files=${encodeURIComponent(JSON.stringify(files))}`
+            : "";
+        const ws = new WebSocket(
+          `${BRIDGE_URL}/terminal?provider=${provider}&machineId=${machineId}&cols=${cols}&rows=${rows}${envParam}${filesParam}`
+        );
 
-      // Buffer for accumulating data until we see the init marker
-      let buffer = "";
-      let initComplete = false;
+        // Buffer for accumulating data until we see the init marker
+        let buffer = "";
+        let initComplete = false;
 
-      ws.onmessage = (event) => {
-        const data = event.data as string;
-
-        if (initComplete) {
-          // Already initialized, write directly to terminal
-          terminal.write(data);
-          return;
-        }
-
-        // Still waiting for init - accumulate in buffer
-        buffer += data;
-
-        // Check if buffer contains the init complete marker
-        const markerIndex = buffer.indexOf(INIT_COMPLETE_MARKER);
-        if (markerIndex !== -1) {
-          // Found the marker! Discard everything up to and including it
+        const handleInitComplete = (markerIndex: number) => {
           initComplete = true;
           setIsInitialized(true);
-
-          // The clear command follows the marker, so we just start fresh
-          // Any data after the marker (post-clear) should be written
           const afterMarker = buffer.slice(
             markerIndex + INIT_COMPLETE_MARKER.length
           );
-
-          // Clear terminal and write any remaining data
           terminal.clear();
           if (afterMarker.length > 0) {
             terminal.write(afterMarker);
           }
-        }
-      };
+        };
 
-      ws.onclose = () => {
-        terminal.write("\r\n[Disconnected]\r\n");
-      };
+        ws.onmessage = (event) => {
+          const data = event.data as string;
 
-      ws.onerror = () => {
-        terminal.write("\r\n[Connection error]\r\n");
-      };
+          if (initComplete) {
+            terminal.write(data);
+            return;
+          }
 
-      terminal.onData((data) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(data);
-        }
-      });
+          buffer += data;
+          const markerIndex = buffer.indexOf(INIT_COMPLETE_MARKER);
+          if (markerIndex !== -1) {
+            handleInitComplete(markerIndex);
+          }
+        };
 
-      const handleResize = () => {
-        requestAnimationFrame(() => {
-          fitAddon.fit();
+        ws.onclose = () => {
+          terminal.write("\r\n[Disconnected]\r\n");
+        };
+
+        ws.onerror = () => {
+          terminal.write("\r\n[Connection error]\r\n");
+        };
+
+        terminal.onData((data) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
         });
-      };
-      window.addEventListener("resize", handleResize);
 
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        ws.close();
-      };
+        const sendResize = () => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "resize",
+                cols: terminal.cols,
+                rows: terminal.rows,
+              })
+            );
+          }
+        };
+
+        const handleResize = () => {
+          requestAnimationFrame(() => {
+            fitAddon.fit();
+            sendResize();
+          });
+        };
+        window.addEventListener("resize", handleResize);
+
+        cleanup = () => {
+          window.removeEventListener("resize", handleResize);
+          ws.close();
+        };
+      });
     }
+
+    openTerminal();
+
+    return () => {
+      cleanup?.();
+    };
   }, [terminal, fitAddon, machineId, provider, env, files]);
 
   return (

@@ -15,7 +15,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "morphcloud": "catalog:",
     "ssh2": "catalog:"
   },
   "devDependencies": {

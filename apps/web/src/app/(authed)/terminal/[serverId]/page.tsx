@@ -119,7 +119,7 @@ approval_policy = "never"
   }
 
   return (
-    <div className="flex h-screen flex-col bg-black p-2">
+    <div className="flex h-full flex-col bg-black p-2">
       <div className="mb-2 font-mono text-gray-400 text-sm">
         {provider}: {params.serverId}
       </div>
