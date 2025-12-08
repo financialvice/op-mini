@@ -209,6 +209,8 @@
   },
   "dependencies": {
     "@instantdb/core": "^0.22.68",
+    "@tanstack/query-sync-storage-persister": "^5.90.14",
+    "@tanstack/react-query-persist-client": "^5.90.14",
     "expo-linear-gradient": "^15.0.7"
   },
   "devDependencies": {

@@ -22,6 +22,7 @@
     "@trpc/tanstack-react-query": "catalog:",
     "expo-server-sdk": "catalog:",
     "morphcloud": "^0.0.20",
+    "ssh2": "catalog:",
     "stripe": "catalog:",
     "superjson": "catalog:",
     "zod": "catalog:"
@@ -30,6 +31,7 @@
     "@repo/typescript-config": "workspace:*",
     "@repo/vitest-config": "workspace:*",
     "@types/react": "catalog:",
+    "@types/ssh2": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "vitest": "catalog:"
   }

@@ -19,7 +19,7 @@ type MachineTemplate = string[];
 export const devboxTemplate: MachineTemplate = [
   // Update apt and install base dependencies
   "apt-get update",
-  "apt-get install -y ca-certificates gnupg tmux",
+  "apt-get install -y ca-certificates gnupg tmux unzip",
 
   // Install Node.js LTS (v20.x) via NodeSource
   "mkdir -p /etc/apt/keyrings",
@@ -44,6 +44,10 @@ EOF`,
 
   // Install AI coding assistants globally via bun
   "$HOME/.bun/bin/bun install -g @anthropic-ai/claude-code @openai/codex",
+
+  // Start wake service on port 42069 for HTTP wake-on-lan (with CORS headers)
+  `$HOME/.bun/bin/pm2 start --name wake "node -e \\"require('http').createServer((req,res)=>{res.writeHead(200,{'Access-Control-Allow-Origin':'*'});res.end('ok')}).listen(42069)\\""`,
+  "$HOME/.bun/bin/pm2 save",
 
   // Clean up apt cache to save disk space
   "apt-get clean",

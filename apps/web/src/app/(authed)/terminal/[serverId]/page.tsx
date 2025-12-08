@@ -1,6 +1,8 @@
 "use client";
 
 import { db } from "@repo/db";
+import { useTRPC } from "@repo/trpc/client";
+import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useParams, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -20,9 +22,19 @@ export default function TerminalPage() {
   const params = useParams<{ serverId: string }>();
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider") ?? "hetzner";
+  const trpc = useTRPC();
 
   const { token: claudeToken } = db.useOAuthToken("claude");
   const { token: codexToken } = db.useOAuthToken("codex");
+
+  // Keep morph instances alive by refreshing TTL every 30 seconds
+  const instanceId = params.serverId ?? "";
+  useQuery({
+    ...trpc.morph.instance.refreshTtl.queryOptions({ instanceId }),
+    enabled: provider === "morph" && !!instanceId,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+  });
 
   const env = useMemo(() => {
     const vars: Record<string, string> = {

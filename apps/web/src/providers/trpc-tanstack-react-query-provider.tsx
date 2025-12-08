@@ -1,8 +1,13 @@
 "use client";
 
 import { queryClient, TRPCProvider, trpcClient } from "@repo/trpc/client";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import type { ReactNode } from "react";
+
+const persister = createSyncStoragePersister({
+  storage: typeof window !== "undefined" ? window.localStorage : undefined,
+});
 
 export function TRPCTanStackReactQueryProvider({
   children,
@@ -10,10 +15,13 @@ export function TRPCTanStackReactQueryProvider({
   children: ReactNode;
 }) {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister }}
+    >
       <TRPCProvider queryClient={queryClient} trpcClient={trpcClient}>
         {children}
       </TRPCProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

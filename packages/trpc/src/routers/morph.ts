@@ -48,6 +48,9 @@ export const morphRouter = t.router({
           });
 
           await instance.waitUntilReady(30); // 30s timeout
+          await instance.exposeHttpService("web", 3000);
+          await instance.exposeHttpService("wake", 42_069);
+          await instance.setWakeOn(true, true); // wake on ssh, wake on http
 
           for (let i = 0; i < template.length; i++) {
             const command = template[i] as string;
@@ -89,6 +92,8 @@ export const morphRouter = t.router({
             commands: JSON.stringify(template),
             createdAt: new Date().toISOString(),
           });
+
+          await instance.setTTL(60, "pause"); // 60 second ttl
 
           await morph.POST(`/instance/${instance.id}/pause`, {
             snapshot: false,
@@ -230,6 +235,25 @@ export const morphRouter = t.router({
       .mutation(async ({ input }) => {
         await morph.POST(`/instance/${input.instanceId}/resume`);
       }),
+    // refresh TTL to keep instance alive (query so we can use refetchInterval)
+    refreshTtl: t.procedure
+      .input(
+        z.object({ instanceId: z.string(), ttlSeconds: z.number().default(60) })
+      )
+      .query(async ({ input }) => {
+        try {
+          const result = await morph.POST(
+            `/instance/${input.instanceId}/ttl`,
+            {}, // query params
+            { ttl_seconds: input.ttlSeconds, ttl_action: "pause" } // body
+          );
+
+          return result;
+        } catch (err) {
+          console.error("[refreshTtl] error:", err);
+          throw err;
+        }
+      }),
     // branch an instance, if paused must pass resume=true in order to resume prior to branching
     // for count=n, will create n new ready instances
     branch: t.procedure
@@ -264,4 +288,61 @@ export const morphRouter = t.router({
           .parse(response);
       }),
   },
+  stats: t.procedure.query(async () => {
+    const MCU_RATE = 0.05; // $0.05 per MCU
+
+    const [usageResponse, snapshots, instances] = await Promise.all([
+      morph.GET("/user/usage", { interval: "24h" }) as Promise<{
+        instance: Array<{
+          instance_cpu_time: number;
+          instance_memory_time: number;
+          instance_disk_time: number;
+        }>;
+        snapshot: Array<{
+          snapshot_memory_time: number;
+          snapshot_disk_time: number;
+        }>;
+      }>,
+      morph.snapshots.list({}),
+      morph.instances.list(),
+    ]);
+
+    // Calculate total MCU from usage data
+    const instanceUsage = usageResponse.instance.reduce(
+      (acc, item) => ({
+        cpuTime: acc.cpuTime + (item.instance_cpu_time ?? 0),
+        memoryTime: acc.memoryTime + (item.instance_memory_time ?? 0),
+        diskTime: acc.diskTime + (item.instance_disk_time ?? 0),
+      }),
+      { cpuTime: 0, memoryTime: 0, diskTime: 0 }
+    );
+
+    const snapshotUsage = usageResponse.snapshot.reduce(
+      (acc, item) => ({
+        memoryTime: acc.memoryTime + (item.snapshot_memory_time ?? 0),
+        diskTime: acc.diskTime + (item.snapshot_disk_time ?? 0),
+      }),
+      { memoryTime: 0, diskTime: 0 }
+    );
+
+    // Count instances by status
+    const runningInstances = instances.filter(
+      (i) => i.status === "ready"
+    ).length;
+    const pausedInstances = instances.filter(
+      (i) => i.status === "paused"
+    ).length;
+
+    return {
+      usage: {
+        instance: instanceUsage,
+        snapshot: snapshotUsage,
+        mcuRate: MCU_RATE,
+      },
+      snapshotCount: snapshots.length,
+      runningInstanceCount: runningInstances,
+      pausedInstanceCount: pausedInstances,
+      totalInstanceCount: instances.length,
+    };
+  }),
 });

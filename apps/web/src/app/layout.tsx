@@ -26,6 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link href="https://http.cloud.morph.so" rel="preconnect" />
+        <link href="https://http.cloud.morph.so" rel="dns-prefetch" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
       >
