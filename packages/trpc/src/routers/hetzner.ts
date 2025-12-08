@@ -167,6 +167,11 @@ export const hetznerRouter = t.router({
         (img) => img.labels?.type === "template"
       );
     }),
+    delete: t.procedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await hetznerFetch(`/images/${input.id}`, { method: "DELETE" });
+      }),
     create: t.procedure
       .input(z.object({ name: z.enum(["devbox"]) }))
       .mutation(async ({ input }) => {

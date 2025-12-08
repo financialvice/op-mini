@@ -100,6 +100,14 @@ export default function HomePage() {
         }),
     })
   );
+  const { mutateAsync: deleteHetznerTemplate } = useMutation(
+    trpc.hetzner.templates.delete.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.hetzner.templates.list.queryKey(),
+        }),
+    })
+  );
   return (
     <div className="flex flex-col items-start gap-4 p-2">
       <h1>Machines</h1>
@@ -200,21 +208,31 @@ export default function HomePage() {
                   {template.status}
                 </span>
               </div>
-              <button
-                className="text-green-500 hover:text-green-400 disabled:cursor-not-allowed disabled:text-gray-500"
-                disabled={template.status !== "available"}
-                onClick={() =>
-                  createHetznerServer({ image: String(template.id) })
-                }
-                title={
-                  template.status === "available"
-                    ? "Create server from template"
-                    : `Template ${template.status}`
-                }
-                type="button"
-              >
-                ▶
-              </button>
+              <div className="flex gap-1">
+                <button
+                  className="text-green-500 hover:text-green-400 disabled:cursor-not-allowed disabled:text-gray-500"
+                  disabled={template.status !== "available"}
+                  onClick={() =>
+                    createHetznerServer({ image: String(template.id) })
+                  }
+                  title={
+                    template.status === "available"
+                      ? "Create server from template"
+                      : `Template ${template.status}`
+                  }
+                  type="button"
+                >
+                  ▶
+                </button>
+                <button
+                  className="text-red-500 hover:text-red-400"
+                  onClick={() => deleteHetznerTemplate({ id: template.id })}
+                  title="Delete template"
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
             </div>
           ))}
         </div>
