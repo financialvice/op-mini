@@ -19,6 +19,9 @@ type MachineTemplate = string[];
  * - pm2 for process management (via bun)
  */
 export const devboxTemplate: MachineTemplate = [
+  // Set hostname for consistent prompt across providers
+  "hostnamectl set-hostname operator",
+
   // Update apt and install base dependencies
   "apt-get update",
   "apt-get install -y ca-certificates gnupg tmux unzip",

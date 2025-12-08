@@ -1,14 +1,39 @@
 "use client";
 
+import { flavors } from "@catppuccin/palette";
 import { FitAddon } from "@xterm/addon-fit";
+import type { ITheme } from "@xterm/xterm";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef, useState } from "react";
 
+const frappe = flavors.frappe.colors;
+const theme: ITheme = {
+  background: frappe.base.hex,
+  foreground: frappe.text.hex,
+  cursor: frappe.rosewater.hex,
+  cursorAccent: frappe.base.hex,
+  selectionBackground: frappe.surface2.hex,
+  black: frappe.surface1.hex,
+  red: frappe.red.hex,
+  green: frappe.green.hex,
+  yellow: frappe.yellow.hex,
+  blue: frappe.blue.hex,
+  magenta: frappe.pink.hex,
+  cyan: frappe.teal.hex,
+  white: frappe.subtext1.hex,
+  brightBlack: frappe.surface2.hex,
+  brightRed: frappe.red.hex,
+  brightGreen: frappe.green.hex,
+  brightYellow: frappe.yellow.hex,
+  brightBlue: frappe.blue.hex,
+  brightMagenta: frappe.pink.hex,
+  brightCyan: frappe.teal.hex,
+  brightWhite: frappe.text.hex,
+};
+
 const BRIDGE_URL =
   process.env.NEXT_PUBLIC_TERMINAL_BRIDGE_URL ?? "ws://localhost:8787";
-
-// Marker that signals setup is complete - must match terminal-bridge
 const INIT_COMPLETE_MARKER = "@@INIT_COMPLETE@@";
 
 type FileToWrite = {
@@ -16,6 +41,28 @@ type FileToWrite = {
   content: string;
   mode?: string;
 };
+
+/** Wait for container to have dimensions before calling callback */
+function waitForDimensions(
+  container: HTMLDivElement,
+  callback: () => void
+): () => void {
+  if (container.clientWidth > 0 && container.clientHeight > 0) {
+    callback();
+    // biome-ignore lint/suspicious/noEmptyBlockStatements: noop cleanup
+    return () => {};
+  }
+
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[0];
+    if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+      observer.disconnect();
+      callback();
+    }
+  });
+  observer.observe(container);
+  return () => observer.disconnect();
+}
 
 export function TerminalComponent({
   machineId,
@@ -28,171 +75,169 @@ export function TerminalComponent({
   env?: Record<string, string>;
   files?: FileToWrite[];
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const loadingRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [isReady, setIsReady] = useState(false);
 
-  // Phase 1: Create terminal instance
+  // Separate terminal state from opening (fixes Next.js xterm dimensions bug)
+  const [loadingTerm, setLoadingTerm] = useState<Terminal | null>(null);
+  const [loadingFit, setLoadingFit] = useState<FitAddon | null>(null);
+  const [mainTerm, setMainTerm] = useState<Terminal | null>(null);
+  const [mainFit, setMainFit] = useState<FitAddon | null>(null);
+
+  // Create loading terminal
+  useEffect(() => {
+    if (isReady) {
+      return;
+    }
+
+    const term = new Terminal({
+      cursorBlink: false,
+      fontFamily: "monospace",
+      fontSize: 14,
+      disableStdin: true,
+      theme,
+    });
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    setLoadingTerm(term);
+    setLoadingFit(fit);
+
+    return () => term.dispose();
+  }, [isReady]);
+
+  // Open loading terminal and animate
+  useEffect(() => {
+    if (!(loadingTerm && loadingFit) || isReady || !loadingRef.current) {
+      return;
+    }
+
+    let interval: ReturnType<typeof setInterval>;
+    const cleanup = waitForDimensions(loadingRef.current, () => {
+      loadingTerm.open(loadingRef.current!);
+      loadingFit.fit();
+
+      const prompt = "root@operator:~# ";
+      let dots = 1;
+      const write = () => {
+        loadingTerm.write(`\r${prompt}initializing${".".repeat(dots)}   `);
+      };
+      write();
+      interval = setInterval(() => {
+        dots = dots >= 3 ? 1 : dots + 1;
+        write();
+      }, 400);
+    });
+
+    return () => {
+      cleanup();
+      clearInterval(interval);
+    };
+  }, [loadingTerm, loadingFit, isReady]);
+
+  // Create main terminal
   useEffect(() => {
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: "monospace",
       fontSize: 14,
+      theme,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
-    setTerminal(term);
-    setFitAddon(fit);
+    setMainTerm(term);
+    setMainFit(fit);
 
-    return () => {
-      term.dispose();
-    };
+    return () => term.dispose();
   }, []);
 
-  // Phase 2: Open terminal and connect WebSocket once terminal and container are ready
+  // Open main terminal and connect WebSocket
   useEffect(() => {
-    if (!(terminal && fitAddon && containerRef.current)) {
+    if (!(mainTerm && mainFit && mainRef.current)) {
       return;
     }
 
-    // Wait for container to have dimensions
-    const container = containerRef.current;
-    if (container.clientWidth === 0 || container.clientHeight === 0) {
-      const observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (
-          entry &&
-          entry.contentRect.width > 0 &&
-          entry.contentRect.height > 0
-        ) {
-          observer.disconnect();
-          openTerminal();
-        }
+    let ws: WebSocket;
+    let resizeHandler: () => void;
+
+    const cleanup = waitForDimensions(mainRef.current, () => {
+      mainTerm.open(mainRef.current!);
+      mainFit.fit();
+
+      const { cols, rows } = mainTerm;
+      const params = new URLSearchParams({
+        provider,
+        machineId,
+        cols: String(cols),
+        rows: String(rows),
       });
-      observer.observe(container);
-      return () => observer.disconnect();
-    }
-
-    let cleanup: (() => void) | undefined;
-
-    function openTerminal() {
-      if (!(terminal && fitAddon && containerRef.current)) {
-        return;
+      if (env && Object.keys(env).length > 0) {
+        params.set("env", JSON.stringify(env));
+      }
+      if (files && files.length > 0) {
+        params.set("files", JSON.stringify(files));
       }
 
-      terminal.open(containerRef.current);
+      ws = new WebSocket(`${BRIDGE_URL}/terminal?${params}`);
 
-      // Fit first, then connect with initial dimensions
-      requestAnimationFrame(() => {
-        fitAddon.fit();
-        const { cols, rows } = terminal;
+      let buffer = "";
+      let initComplete = false;
 
-        const envParam =
-          env && Object.keys(env).length > 0
-            ? `&env=${encodeURIComponent(JSON.stringify(env))}`
-            : "";
-        const filesParam =
-          files && files.length > 0
-            ? `&files=${encodeURIComponent(JSON.stringify(files))}`
-            : "";
-        const ws = new WebSocket(
-          `${BRIDGE_URL}/terminal?provider=${provider}&machineId=${machineId}&cols=${cols}&rows=${rows}${envParam}${filesParam}`
-        );
-
-        // Buffer for accumulating data until we see the init marker
-        let buffer = "";
-        let initComplete = false;
-
-        const handleInitComplete = (markerIndex: number) => {
-          initComplete = true;
-          setIsInitialized(true);
-          const afterMarker = buffer.slice(
-            markerIndex + INIT_COMPLETE_MARKER.length
-          );
-          terminal.clear();
-          if (afterMarker.length > 0) {
-            terminal.write(afterMarker);
-          }
-        };
-
-        ws.onmessage = (event) => {
-          const data = event.data as string;
-
-          if (initComplete) {
-            terminal.write(data);
-            return;
-          }
-
+      ws.onmessage = (e) => {
+        const data = e.data as string;
+        if (initComplete) {
+          mainTerm.write(data);
+        } else {
           buffer += data;
-          const markerIndex = buffer.indexOf(INIT_COMPLETE_MARKER);
-          if (markerIndex !== -1) {
-            handleInitComplete(markerIndex);
+          if (buffer.includes(INIT_COMPLETE_MARKER)) {
+            initComplete = true;
+            setIsReady(true);
           }
-        };
+        }
+      };
 
-        ws.onclose = () => {
-          terminal.write("\r\n[Disconnected]\r\n");
-        };
+      ws.onclose = () => mainTerm.write("\r\n[Disconnected]\r\n");
+      ws.onerror = () => mainTerm.write("\r\n[Connection error]\r\n");
 
-        ws.onerror = () => {
-          terminal.write("\r\n[Connection error]\r\n");
-        };
-
-        terminal.onData((data) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(data);
-          }
-        });
-
-        const sendResize = () => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(
-              JSON.stringify({
-                type: "resize",
-                cols: terminal.cols,
-                rows: terminal.rows,
-              })
-            );
-          }
-        };
-
-        const handleResize = () => {
-          requestAnimationFrame(() => {
-            fitAddon.fit();
-            sendResize();
-          });
-        };
-        window.addEventListener("resize", handleResize);
-
-        cleanup = () => {
-          window.removeEventListener("resize", handleResize);
-          ws.close();
-        };
+      mainTerm.onData((data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data);
+        }
       });
-    }
 
-    openTerminal();
+      resizeHandler = () => {
+        mainFit.fit();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "resize",
+              cols: mainTerm.cols,
+              rows: mainTerm.rows,
+            })
+          );
+        }
+      };
+      window.addEventListener("resize", resizeHandler);
+    });
 
     return () => {
-      cleanup?.();
+      cleanup();
+      ws?.close();
+      if (resizeHandler) {
+        window.removeEventListener("resize", resizeHandler);
+      }
     };
-  }, [terminal, fitAddon, machineId, provider, env, files]);
+  }, [mainTerm, mainFit, machineId, provider, env, files]);
 
   return (
     <div className="relative h-full w-full">
-      {/* Loading overlay - shown until init is complete */}
-      {!isInitialized && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
-          <div className="text-center text-gray-400">
-            <div className="mb-2 text-lg">Initializing terminal...</div>
-            <div className="text-sm">Setting up environment</div>
-          </div>
-        </div>
-      )}
       <div
-        className={`h-full w-full ${isInitialized ? "" : "invisible"}`}
-        ref={containerRef}
+        className={`absolute inset-0 ${isReady ? "hidden" : ""}`}
+        ref={loadingRef}
+      />
+      <div
+        className={`h-full w-full ${isReady ? "" : "invisible"}`}
+        ref={mainRef}
       />
     </div>
   );

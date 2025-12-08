@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@catppuccin/palette": "^1.7.1",
     "@hookform/resolvers": "catalog:",
     "@instantdb/admin": "catalog:",
     "@instantdb/react": "catalog:",
@@ -21,10 +22,10 @@
     "@stripe/stripe-js": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",
-    "@xterm/addon-fit": "catalog:",
-    "@xterm/xterm": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
+    "@xterm/addon-fit": "catalog:",
+    "@xterm/xterm": "catalog:",
     "@xyflow/react": "^12.10.0",
     "lucide-react": "catalog:",
     "morphcloud": "^0.0.20",
