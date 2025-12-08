@@ -41,6 +41,7 @@ export default function TerminalPage() {
   const env = useMemo(() => {
     const vars: Record<string, string> = {
       IS_SANDBOX: "true",
+      MORPH_API_KEY: "morph_k4bK5nJrMbx5oBGWs6cVGe",
     };
     if (claudeToken?.accessToken) {
       vars.CLAUDE_CODE_OAUTH_TOKEN = claudeToken.accessToken;

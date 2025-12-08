@@ -52,6 +52,16 @@ EOF`,
   // Install AI coding assistants and deployment tools globally via bun
   "$HOME/.bun/bin/bun install -g @anthropic-ai/claude-code @openai/codex vercel",
 
+  // Install uv (fast Python package installer) and morphcloud CLI
+  "curl -LsSf https://astral.sh/uv/install.sh | sh",
+  `cat >> ~/.profile << 'EOF'
+export PATH="$HOME/.local/bin:$PATH"
+EOF`,
+  `cat >> ~/.bashrc << 'EOF'
+export PATH="$HOME/.local/bin:$PATH"
+EOF`,
+  "$HOME/.local/bin/uv tool install morphcloud",
+
   // Start wake service on port 42069 for HTTP wake-on-lan (with CORS headers)
   `$HOME/.bun/bin/pm2 start --name wake "node -e \\"require('http').createServer((req,res)=>{res.writeHead(200,{'Access-Control-Allow-Origin':'*'});res.end('ok')}).listen(42069)\\""`,
   "$HOME/.bun/bin/pm2 save",
