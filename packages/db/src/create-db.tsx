@@ -151,6 +151,39 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     await client.transact([client.tx.oauthTokens[tokenId]!.delete()]);
   };
 
+  /**
+   * Get user's workspace: team membership with nested org and apps.
+   * Single query that fetches everything needed for the workspace context.
+   */
+  const useWorkspace = () => {
+    const { id } = client.useUser();
+    const { data, isLoading, error } = client.useQuery(
+      id
+        ? {
+            teamMemberships: {
+              $: { where: { "user.id": id } },
+              team: {
+                instantDbOrg: {},
+                instantDbApps: {},
+              },
+            },
+          }
+        : null
+    );
+
+    const membership = data?.teamMemberships?.[0];
+    const team = membership?.team;
+
+    return {
+      membership,
+      team,
+      org: team?.instantDbOrg,
+      apps: team?.instantDbApps ?? [],
+      isLoading,
+      error,
+    };
+  };
+
   return {
     useAuth: () => client.useAuth(),
     useUser: () => client.useUser(),
@@ -165,6 +198,7 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     RedirectSignedIn,
     Redirect,
     getAuth: () => client.getAuth(),
+    useWorkspace,
     // Expose the raw client for devtools
     _client: client,
   };

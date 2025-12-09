@@ -29,13 +29,21 @@ export const queryClient = new QueryClient({
   },
 });
 
+// Token getter - set by the app when auth is available
+let getAuthToken: (() => string | undefined) | undefined;
+
+export const setAuthTokenGetter = (getter: () => string | undefined) => {
+  getAuthToken = getter;
+};
+
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: SuperJSON,
       headers() {
-        return {};
+        const token = getAuthToken?.();
+        return token ? { Authorization: `Bearer ${token}` } : {};
       },
     }),
   ],

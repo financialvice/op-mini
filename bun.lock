@@ -224,6 +224,7 @@
       "name": "@repo/trpc",
       "version": "0.0.0",
       "dependencies": {
+        "@instantdb/platform": "catalog:",
         "@repo/db": "workspace:*",
         "@tanstack/react-query": "catalog:",
         "@trpc/client": "catalog:",

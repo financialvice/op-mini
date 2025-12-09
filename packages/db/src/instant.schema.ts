@@ -29,12 +29,29 @@ const _schema = i.schema({
       lastRefreshedAt: i.date().optional(),
       createdAt: i.date().indexed(),
     }),
-    instantDbOrgs: i.entity({
-      orgId: i.string(),
+    // Teams for grouping users and resources
+    teams: i.entity({
+      name: i.string(),
+      createdAt: i.date().indexed(),
     }),
+    // Join entity for team membership (since links can't carry attributes)
+    teamMemberships: i.entity({
+      role: i.string<"owner" | "member">(), // "owner" | "member"
+      createdAt: i.date().indexed(),
+    }),
+    // External InstantDB org owned by a team
+    instantDbOrgs: i.entity({
+      externalOrgId: i.string().unique().indexed(),
+      name: i.string(),
+      createdAt: i.date().indexed(),
+    }),
+    // External InstantDB app owned by a team
     instantDbApps: i.entity({
-      appId: i.string(),
+      externalAppId: i.string().unique().indexed(),
       adminToken: i.string(),
+      name: i.string(),
+      description: i.string().optional(),
+      createdAt: i.date().indexed(),
     }),
     vercelTeams: i.entity({}),
     githubRepos: i.entity({
@@ -57,6 +74,70 @@ const _schema = i.schema({
         on: "$users",
         has: "many",
         label: "oauthTokens",
+      },
+    },
+    // Team membership links
+    membershipUser: {
+      forward: {
+        on: "teamMemberships",
+        has: "one",
+        label: "user",
+      },
+      reverse: {
+        on: "$users",
+        has: "many",
+        label: "teamMemberships",
+      },
+    },
+    membershipTeam: {
+      forward: {
+        on: "teamMemberships",
+        has: "one",
+        label: "team",
+      },
+      reverse: {
+        on: "teams",
+        has: "many",
+        label: "memberships",
+      },
+    },
+    // Team owns exactly one InstantDB org (1:1)
+    teamInstantDbOrg: {
+      forward: {
+        on: "instantDbOrgs",
+        has: "one",
+        label: "team",
+      },
+      reverse: {
+        on: "teams",
+        has: "one",
+        label: "instantDbOrg",
+      },
+    },
+    // Team owns InstantDB apps
+    teamInstantDbApps: {
+      forward: {
+        on: "instantDbApps",
+        has: "one",
+        label: "team",
+      },
+      reverse: {
+        on: "teams",
+        has: "many",
+        label: "instantDbApps",
+      },
+    },
+    // App belongs to an org
+    appOrg: {
+      forward: {
+        on: "instantDbApps",
+        has: "one",
+        label: "org",
+      },
+      reverse: {
+        on: "instantDbOrgs",
+        has: "many",
+        label: "apps",
       },
     },
   },

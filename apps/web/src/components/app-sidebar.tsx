@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@repo/ui/components/sidebar";
-import { BookTemplateIcon, Home, UserIcon } from "lucide-react";
+import { BookTemplateIcon, DatabaseIcon, Home, UserIcon } from "lucide-react";
 import Link from "next/link";
 
 const items = [
@@ -26,6 +26,11 @@ const items = [
     title: "Accounts",
     url: "/oauth",
     icon: UserIcon,
+  },
+  {
+    title: "Databases",
+    url: "/databases",
+    icon: DatabaseIcon,
   },
 ];
 
