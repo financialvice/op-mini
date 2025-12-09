@@ -5,6 +5,7 @@ import { type AppSchema, db, id } from "@repo/db";
 import { type AppRouter, useTRPC } from "@repo/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -576,13 +577,20 @@ function InstanceRow({ instance }: { instance: Instance }) {
           >
             ⑂
           </button>
-          <a
+          <Link
             className="text-green-500 hover:text-green-400"
             href={`/terminal/${instance.id}?provider=morph`}
             title="Open terminal"
           >
             &gt;_
-          </a>
+          </Link>
+          <Link
+            className="text-purple-500 hover:text-purple-400"
+            href={`/chat/${instance.id}?provider=morph`}
+            title="Open chat"
+          >
+            💬
+          </Link>
         </div>
       </div>
       {webServiceUrl && (
@@ -639,13 +647,13 @@ function ServerRow({
         >
           ×
         </button>
-        <a
+        <Link
           className="text-green-500 hover:text-green-400"
           href={`/terminal/${server.id}`}
           title="Open terminal"
         >
           &gt;_
-        </a>
+        </Link>
       </div>
     </div>
   );
