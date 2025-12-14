@@ -20,7 +20,9 @@
         "useExhaustiveDependencies": "off"
       },
       "nursery": {
-        "noIncrementDecrement": "off"
+        "noIncrementDecrement": "off",
+        "noLeakedRender": "off",
+        "useFind": "off"
       },
       "performance": {
         "noNamespaceImport": "off",

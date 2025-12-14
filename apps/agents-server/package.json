@@ -1,0 +1,57 @@
+{
+  "name": "@camglynn/agents-server",
+  "version": "0.1.9",
+  "type": "module",
+  "description": "Unified server for Claude Code and Codex coding agents",
+  "license": "MIT",
+  "bin": {
+    "agents-server": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./models": {
+      "import": "./dist/models.js",
+      "types": "./dist/models.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "lint:fix:unsafe": "biome check . --unsafe --write",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "dev": "bun run --watch src/index.ts",
+    "populate-models": "bun run scripts/populate-models.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "dependencies": {
+    "@repo/agents-core": "workspace:*",
+    "@sinclair/typebox": "catalog:",
+    "@elysiajs/cors": "catalog:",
+    "elysia": "catalog:",
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@openai/codex-sdk": "catalog:",
+    "@elysiajs/eden": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "tsup": "catalog:"
+  }
+}

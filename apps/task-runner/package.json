@@ -11,10 +11,12 @@
   },
   "type": "module",
   "dependencies": {
+    "@repo/db": "workspace:*",
     "@repo/tasks": "workspace:*",
     "@sentry/esbuild-plugin": "catalog:",
     "@sentry/node": "catalog:",
-    "@trigger.dev/sdk": "catalog:"
+    "@trigger.dev/sdk": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -17,6 +17,7 @@ type MachineTemplate = string[];
  * - Vercel CLI for deployments
  * - tmux for terminal multiplexing
  * - pm2 for process management (via bun)
+ * - @camglynn/agents-server (server for Claude/Codex agents, runs on port 3456)
  */
 export const devboxTemplate: MachineTemplate = [
   // Set hostname for consistent prompt across providers
@@ -55,6 +56,12 @@ EOF`,
   // Install AI coding assistants and deployment tools globally via bun
   "$HOME/.bun/bin/bun install -g @anthropic-ai/claude-code @openai/codex vercel",
 
+  // Configure npm registry with auth token for private packages (token provided via env)
+  "echo '//registry.npmjs.org/:_authToken='$NPM_TOKEN >> ~/.npmrc",
+
+  // Install agents-server and its peer dependencies globally via bun
+  "$HOME/.bun/bin/bun install -g @sinclair/typebox@latest @camglynn/agents-server",
+
   // Install uv (fast Python package installer) and morphcloud CLI
   "curl -LsSf https://astral.sh/uv/install.sh | sh",
   `cat >> ~/.profile << 'EOF'
@@ -67,6 +74,9 @@ EOF`,
 
   // Start wake service on port 42069 for HTTP wake-on-lan (with CORS headers)
   `$HOME/.bun/bin/pm2 start --name wake "node -e \\"require('http').createServer((req,res)=>{res.writeHead(200,{'Access-Control-Allow-Origin':'*'});res.end('ok')}).listen(42069)\\""`,
+
+  // Start agents-server on port 3456 with auto-restart (using bun command to avoid pm2 fork mode issues)
+  `$HOME/.bun/bin/pm2 start "bun $HOME/.bun/install/global/node_modules/@camglynn/agents-server/dist/index.js" --name agents-server`,
   "$HOME/.bun/bin/pm2 save",
 
   // Clean up apt cache to save disk space

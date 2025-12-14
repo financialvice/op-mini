@@ -11,6 +11,12 @@
  */
 
 import { i } from "@instantdb/core";
+import type { Provider } from "@repo/agents-core";
+import type {
+  Message,
+  MessageBlock,
+  SessionStatus,
+} from "@repo/agents-core/types";
 
 const _schema = i.schema({
   entities: {
@@ -24,6 +30,7 @@ const _schema = i.schema({
     oauthTokens: i.entity({
       provider: i.string(),
       accessToken: i.string(),
+      idToken: i.string().optional(),
       refreshToken: i.string().optional(),
       expiresAt: i.date().optional(),
       lastRefreshedAt: i.date().optional(),
@@ -60,8 +67,21 @@ const _schema = i.schema({
     machines: i.entity({
       morphInstanceId: i.string().unique().indexed().optional(),
     }),
-    sessions: i.entity({}),
-    messsages: i.entity({}),
+    sessions: i.entity({
+      agentSessionId: i.string().optional().indexed(),
+      provider: i.string<Provider>(),
+      model: i.string(),
+      reasoningLevel: i.number(),
+      status: i.string<SessionStatus>().optional().indexed(),
+      createdAt: i.date().indexed(),
+      updatedAt: i.date().indexed(),
+    }),
+    messages: i.entity({
+      role: i.string<Message["role"]>(),
+      blocks: i.json<MessageBlock[]>(),
+      order: i.number(),
+      createdAt: i.date().indexed(),
+    }),
   },
   links: {
     userOAuthTokens: {
@@ -69,6 +89,7 @@ const _schema = i.schema({
         on: "oauthTokens",
         has: "one",
         label: "user",
+        onDelete: "cascade",
       },
       reverse: {
         on: "$users",
@@ -82,6 +103,7 @@ const _schema = i.schema({
         on: "teamMemberships",
         has: "one",
         label: "user",
+        onDelete: "cascade",
       },
       reverse: {
         on: "$users",
@@ -94,6 +116,7 @@ const _schema = i.schema({
         on: "teamMemberships",
         has: "one",
         label: "team",
+        onDelete: "cascade",
       },
       reverse: {
         on: "teams",
@@ -107,6 +130,7 @@ const _schema = i.schema({
         on: "instantDbOrgs",
         has: "one",
         label: "team",
+        onDelete: "cascade",
       },
       reverse: {
         on: "teams",
@@ -120,6 +144,7 @@ const _schema = i.schema({
         on: "instantDbApps",
         has: "one",
         label: "team",
+        onDelete: "cascade",
       },
       reverse: {
         on: "teams",
@@ -133,11 +158,51 @@ const _schema = i.schema({
         on: "instantDbApps",
         has: "one",
         label: "org",
+        onDelete: "cascade",
       },
       reverse: {
         on: "instantDbOrgs",
         has: "many",
         label: "apps",
+      },
+    },
+    // Session belongs to a user
+    sessionUser: {
+      forward: {
+        on: "sessions",
+        has: "one",
+        label: "user",
+        onDelete: "cascade",
+      },
+      reverse: {
+        on: "$users",
+        has: "many",
+        label: "sessions",
+      },
+    },
+    sessionMessages: {
+      forward: {
+        on: "messages",
+        has: "many",
+        label: "session",
+      },
+      reverse: {
+        on: "sessions",
+        has: "many",
+        label: "messages",
+      },
+    },
+    // Messages can have attached files (images)
+    messageFiles: {
+      forward: {
+        on: "messages",
+        has: "many",
+        label: "files",
+      },
+      reverse: {
+        on: "$files",
+        has: "many",
+        label: "messages",
       },
     },
   },

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "haiku",
       max_tokens: 50,
       messages: [{ role: "user", content: "Say hello in one sentence!" }],
     }),

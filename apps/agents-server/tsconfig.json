@@ -1,9 +1,5 @@
 {
   "extends": "@repo/typescript-config/base.json",
-  "compilerOptions": {
-    "types": ["bun"],
-    "outDir": "dist"
-  },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

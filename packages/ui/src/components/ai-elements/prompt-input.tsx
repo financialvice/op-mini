@@ -90,7 +90,6 @@ export function PromptInputAttachment({
       {...props}
     >
       {data.mediaType?.startsWith("image/") && data.url ? (
-        // biome-ignore lint/performance/noImgElement: shadcn/ui
         <img
           alt={data.filename || "attachment"}
           className="size-full rounded-md object-cover"

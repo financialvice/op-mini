@@ -1,5 +1,4 @@
 import {
-  type InstantConfig,
   type InstantReactAbstractDatabase,
   id as newId,
 } from "@instantdb/react";
@@ -11,10 +10,7 @@ import type { AppSchema } from "./instant.schema";
  * While the name mentions "db", the returned object exposes hooks, auth
  * helpers, and rendering guards that power the Expo protected routes flow.
  */
-type InstantClient = InstantReactAbstractDatabase<
-  AppSchema,
-  InstantConfig<AppSchema, true>
->;
+type InstantClient = InstantReactAbstractDatabase<AppSchema, true>;
 
 /**
  * Builds the platform-aware `db` facade by wiring shared hook factories to a
@@ -91,6 +87,7 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     tokenData: {
       provider: string;
       accessToken: string;
+      idToken?: string;
       refreshToken: string;
       expiresIn: number;
     }
@@ -107,6 +104,7 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
       client.tx.oauthTokens[tokenId]!.create({
         provider: tokenData.provider,
         accessToken: tokenData.accessToken,
+        idToken: tokenData.idToken,
         refreshToken: tokenData.refreshToken,
         expiresAt,
         createdAt: now,
@@ -122,6 +120,7 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     tokenId: string,
     tokenData: {
       accessToken: string;
+      idToken?: string;
       refreshToken: string;
       expiresIn: number;
     }
@@ -136,6 +135,7 @@ export const createDb = <Client extends InstantClient>(client: Client) => {
     await client.transact([
       client.tx.oauthTokens[tokenId]!.update({
         accessToken: tokenData.accessToken,
+        idToken: tokenData.idToken,
         refreshToken: tokenData.refreshToken,
         expiresAt,
         lastRefreshedAt: now,

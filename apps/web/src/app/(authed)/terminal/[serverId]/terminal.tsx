@@ -1,10 +1,12 @@
 "use client";
 
 import { flavors } from "@catppuccin/palette";
-import { FitAddon } from "@xterm/addon-fit";
-import type { ITheme } from "@xterm/xterm";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
+import {
+  FitAddon,
+  type ITheme,
+  init as initGhostty,
+  Terminal,
+} from "ghostty-web";
 import { useEffect, useRef, useState } from "react";
 
 const frappe = flavors.frappe.colors;
@@ -78,6 +80,7 @@ export function TerminalComponent({
   const loadingRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [ghosttyReady, setGhosttyReady] = useState(false);
 
   // Separate terminal state from opening (fixes Next.js xterm dimensions bug)
   const [loadingTerm, setLoadingTerm] = useState<Terminal | null>(null);
@@ -85,9 +88,14 @@ export function TerminalComponent({
   const [mainTerm, setMainTerm] = useState<Terminal | null>(null);
   const [mainFit, setMainFit] = useState<FitAddon | null>(null);
 
+  // Initialize ghostty-web WASM module
+  useEffect(() => {
+    initGhostty().then(() => setGhosttyReady(true));
+  }, []);
+
   // Create loading terminal
   useEffect(() => {
-    if (isReady) {
+    if (!ghosttyReady || isReady) {
       return;
     }
 
@@ -104,7 +112,7 @@ export function TerminalComponent({
     setLoadingFit(fit);
 
     return () => term.dispose();
-  }, [isReady]);
+  }, [ghosttyReady, isReady]);
 
   // Open loading terminal and animate
   useEffect(() => {
@@ -116,6 +124,12 @@ export function TerminalComponent({
     const cleanup = waitForDimensions(loadingRef.current, () => {
       loadingTerm.open(loadingRef.current!);
       loadingFit.fit();
+
+      // Hide textarea caret and terminal cursor for loading screen
+      if (loadingTerm.textarea) {
+        loadingTerm.textarea.style.caretColor = "transparent";
+      }
+      loadingTerm.write("\x1b[?25l"); // Hide cursor escape sequence
 
       const prompt = "root@operator:~# ";
       let dots = 1;
@@ -137,6 +151,10 @@ export function TerminalComponent({
 
   // Create main terminal
   useEffect(() => {
+    if (!ghosttyReady) {
+      return;
+    }
+
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: "monospace",
@@ -149,7 +167,14 @@ export function TerminalComponent({
     setMainFit(fit);
 
     return () => term.dispose();
-  }, []);
+  }, [ghosttyReady]);
+
+  // Focus terminal when it becomes ready/visible
+  useEffect(() => {
+    if (isReady && mainTerm) {
+      mainTerm.focus();
+    }
+  }, [isReady, mainTerm]);
 
   // Open main terminal and connect WebSocket
   useEffect(() => {
@@ -160,9 +185,33 @@ export function TerminalComponent({
     let ws: WebSocket;
     let resizeHandler: () => void;
 
+    let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
+
     const cleanup = waitForDimensions(mainRef.current, () => {
       mainTerm.open(mainRef.current!);
       mainFit.fit();
+
+      // Hide the textarea caret (ghostty creates internal textarea for input)
+      if (mainTerm.textarea) {
+        mainTerm.textarea.style.caretColor = "transparent";
+      }
+
+      // Intercept browser shortcuts before ghostty-web's InputHandler captures them
+      // InputHandler listens on the parent element, so we must intercept there
+      keydownHandler = (event: KeyboardEvent) => {
+        // Let Cmd+key combinations pass through to browser (except Cmd+C/V)
+        if (event.metaKey) {
+          const key = event.key.toLowerCase();
+          if (key !== "c" && key !== "v") {
+            // Stop propagation so InputHandler never sees this event
+            event.stopPropagation();
+            // Don't preventDefault - let browser handle Cmd+R, Cmd+T, etc.
+          }
+        }
+      };
+      mainRef.current!.addEventListener("keydown", keydownHandler, {
+        capture: true,
+      });
 
       const { cols, rows } = mainTerm;
       const params = new URLSearchParams({
@@ -225,6 +274,11 @@ export function TerminalComponent({
       ws?.close();
       if (resizeHandler) {
         window.removeEventListener("resize", resizeHandler);
+      }
+      if (keydownHandler && mainRef.current) {
+        mainRef.current.removeEventListener("keydown", keydownHandler, {
+          capture: true,
+        });
       }
     };
   }, [mainTerm, mainFit, machineId, provider, env, files]);

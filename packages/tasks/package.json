@@ -17,7 +17,10 @@
     }
   },
   "dependencies": {
-    "@trigger.dev/sdk": "catalog:"
+    "@trigger.dev/sdk": "catalog:",
+    "@repo/agents-core": "workspace:*",
+    "@repo/db": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

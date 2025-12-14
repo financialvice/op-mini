@@ -61,6 +61,7 @@ const COPY_COMMANDS = {
  */
 function parseCodexAuthJson(input: string): {
   accessToken: string;
+  idToken: string;
   refreshToken: string;
 } {
   const parsed = JSON.parse(input.trim()) as CodexAuthJson;
@@ -68,6 +69,12 @@ function parseCodexAuthJson(input: string): {
   if (!parsed.tokens?.access_token) {
     throw new Error(
       "Invalid auth.json: missing tokens.access_token. Make sure you ran 'codex login' first."
+    );
+  }
+
+  if (!parsed.tokens.id_token) {
+    throw new Error(
+      "Invalid auth.json: missing tokens.id_token. Try running 'codex login' again."
     );
   }
 
@@ -79,6 +86,7 @@ function parseCodexAuthJson(input: string): {
 
   return {
     accessToken: parsed.tokens.access_token,
+    idToken: parsed.tokens.id_token,
     refreshToken: parsed.tokens.refresh_token,
   };
 }
@@ -172,7 +180,8 @@ export function CodexImportCard() {
     setIsImporting(true);
 
     try {
-      const { accessToken, refreshToken } = parseCodexAuthJson(authJsonInput);
+      const { accessToken, idToken, refreshToken } =
+        parseCodexAuthJson(authJsonInput);
 
       // Delete existing token if present
       if (storedToken?.id) {
@@ -185,6 +194,7 @@ export function CodexImportCard() {
       await db.saveOAuthToken(userId, {
         provider: CODEX_PROVIDER,
         accessToken,
+        idToken,
         refreshToken,
         expiresIn,
       });
@@ -215,6 +225,7 @@ export function CodexImportCard() {
 
       await db.updateOAuthToken(storedToken.id, {
         accessToken: tokenData.access_token,
+        idToken: tokenData.id_token,
         refreshToken: tokenData.refresh_token ?? storedToken.refreshToken,
         expiresIn: 8 * 24 * 60 * 60, // 8 days
       });

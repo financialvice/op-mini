@@ -36,6 +36,7 @@
   "dependencies": {
     "@instantdb/admin": "catalog:",
     "@instantdb/core": "catalog:",
+    "@repo/agents-core": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

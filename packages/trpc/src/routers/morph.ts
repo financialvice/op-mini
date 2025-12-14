@@ -50,6 +50,7 @@ export const morphRouter = t.router({
           await instance.waitUntilReady(30); // 30s timeout
           await instance.exposeHttpService("web", 3000);
           await instance.exposeHttpService("wake", 42_069);
+          await instance.exposeHttpService("agent", 3456);
           await instance.setWakeOn(true, true); // wake on ssh, wake on http
 
           for (let i = 0; i < template.length; i++) {

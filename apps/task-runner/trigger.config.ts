@@ -4,7 +4,7 @@ import { esbuildPlugin } from "@trigger.dev/build/extensions";
 import { defineConfig } from "@trigger.dev/sdk";
 
 export default defineConfig({
-  project: "proj_znwrhrkadcbvvsyhliro",
+  project: "proj_kouazajdzmlaurllunyf",
   dirs: ["./src/trigger"],
   retries: {
     enabledInDev: true,

@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.8.0",
     "@catppuccin/palette": "^1.7.1",
     "@hookform/resolvers": "catalog:",
     "@instantdb/admin": "catalog:",
     "@instantdb/react": "catalog:",
+    "@repo/agents-core": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",
@@ -24,9 +26,8 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
-    "@xterm/addon-fit": "catalog:",
-    "@xterm/xterm": "catalog:",
     "@xyflow/react": "^12.10.0",
+    "ghostty-web": "^0.4.0",
     "lucide-react": "catalog:",
     "morphcloud": "^0.0.20",
     "next": "catalog:",
