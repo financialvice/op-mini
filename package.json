@@ -8,6 +8,7 @@
     "db:init": "bun run scripts/src/db-init.ts",
     "dev": "turbo dev",
     "dev:mobile": "turbo dev --filter=mobile",
+    "healthcheck": "./scripts/healthcheck.sh",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
     "sort-pkg": "bun run scripts/src/sort-pkg.ts",

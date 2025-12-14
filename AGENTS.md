@@ -1,7 +1,8 @@
 # Project Context
 
-## camono
-A full-stack monorepo application combining mobile (Expo React Native) and web (Next.js) platforms with shared backend services and UI components.
+## op-mini
+- minimal, most simple, low LOC demo implementation of Operator, a platform for using coding agents like Claude Code, Codex, etc.
+- always choose simplest solution
 
 ## Operator Stack
 Use the Operator Stack.
