@@ -27,7 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { CodexImportCard } from "./codex-import";
+import { CodexDeviceAuthCard } from "./codex-device-auth";
 import { VercelImportCard } from "./vercel-import";
 
 const CLAUDE_PROVIDER = "claude";
@@ -635,7 +635,7 @@ export default function OAuthPlaygroundPage() {
           <ClaudeOAuthSection />
         </TabsContent>
         <TabsContent className="mt-4" value="codex">
-          <CodexImportCard />
+          <CodexDeviceAuthCard />
         </TabsContent>
         <TabsContent className="mt-4" value="github">
           <GitHubOAuthSection />
