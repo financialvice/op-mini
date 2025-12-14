@@ -7,7 +7,7 @@ import {
 } from "@repo/ui/components/collapsible";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 export type TaskItemFileProps = ComponentProps<"div">;
 
@@ -37,11 +37,11 @@ export const TaskItem = ({ children, className, ...props }: TaskItemProps) => (
 
 export type TaskProps = ComponentProps<typeof Collapsible>;
 
-export const Task = ({
+export const Task: FC<TaskProps> = ({
   defaultOpen = true,
   className,
   ...props
-}: TaskProps) => (
+}) => (
   <Collapsible className={cn(className)} defaultOpen={defaultOpen} {...props} />
 );
 
@@ -68,11 +68,11 @@ export const TaskTrigger = ({
 
 export type TaskContentProps = ComponentProps<typeof CollapsibleContent>;
 
-export const TaskContent = ({
+export const TaskContent: FC<TaskContentProps> = ({
   children,
   className,
   ...props
-}: TaskContentProps) => (
+}) => (
   <CollapsibleContent
     className={cn(
       "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",

@@ -9,7 +9,7 @@ import {
 import { Progress } from "@repo/ui/components/progress";
 import { cn } from "@repo/ui/lib/utils";
 import type { LanguageModelUsage } from "ai";
-import { type ComponentProps, createContext, useContext } from "react";
+import { type ComponentProps, createContext, type FC, useContext } from "react";
 import { estimateCost, type ModelId } from "tokenlens";
 
 const PERCENT_MAX = 100;
@@ -125,10 +125,10 @@ export const ContextTrigger = ({ children, ...props }: ContextTriggerProps) => {
 
 export type ContextContentProps = ComponentProps<typeof HoverCardContent>;
 
-export const ContextContent = ({
+export const ContextContent: FC<ContextContentProps> = ({
   className,
   ...props
-}: ContextContentProps) => (
+}) => (
   <HoverCardContent
     className={cn("min-w-[240px] divide-y overflow-hidden p-0", className)}
     {...props}

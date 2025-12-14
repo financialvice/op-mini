@@ -5,7 +5,8 @@
   "scripts": {
     "lint": "biome check .",
     "lint:fix": "biome check . --unsafe --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "typecheck:legacy": "tsc --noEmit"
   },
   "type": "module",
   "exports": {

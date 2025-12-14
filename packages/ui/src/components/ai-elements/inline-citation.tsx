@@ -17,6 +17,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import {
   type ComponentProps,
   createContext,
+  type FC,
   useCallback,
   useContext,
   useEffect,
@@ -49,7 +50,7 @@ export const InlineCitationText = ({
 
 export type InlineCitationCardProps = ComponentProps<typeof HoverCard>;
 
-export const InlineCitationCard = (props: InlineCitationCardProps) => (
+export const InlineCitationCard: FC<InlineCitationCardProps> = (props) => (
   <HoverCard closeDelay={0} openDelay={0} {...props} />
 );
 
@@ -98,11 +99,11 @@ const useCarouselApi = () => {
 
 export type InlineCitationCarouselProps = ComponentProps<typeof Carousel>;
 
-export const InlineCitationCarousel = ({
+export const InlineCitationCarousel: FC<InlineCitationCarouselProps> = ({
   className,
   children,
   ...props
-}: InlineCitationCarouselProps) => {
+}) => {
   const [api, setApi] = useState<CarouselApi>();
 
   return (

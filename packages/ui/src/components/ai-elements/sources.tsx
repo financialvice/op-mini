@@ -7,7 +7,7 @@ import {
 } from "@repo/ui/components/collapsible";
 import { cn } from "@repo/ui/lib/utils";
 import { BookIcon, ChevronDownIcon } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 export type SourcesProps = ComponentProps<"div">;
 
@@ -43,10 +43,10 @@ export const SourcesTrigger = ({
 
 export type SourcesContentProps = ComponentProps<typeof CollapsibleContent>;
 
-export const SourcesContent = ({
+export const SourcesContent: FC<SourcesContentProps> = ({
   className,
   ...props
-}: SourcesContentProps) => (
+}) => (
   <CollapsibleContent
     className={cn(
       "mt-3 flex w-fit flex-col gap-2",

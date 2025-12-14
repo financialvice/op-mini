@@ -14,7 +14,7 @@ import {
   DotIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, NamedExoticComponent } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
 
 type ChainOfThoughtContextValue = {
@@ -79,8 +79,8 @@ export type ChainOfThoughtHeaderProps = ComponentProps<
   typeof CollapsibleTrigger
 >;
 
-export const ChainOfThoughtHeader = memo(
-  ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
+export const ChainOfThoughtHeader: NamedExoticComponent<ChainOfThoughtHeaderProps> =
+  memo(({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
     const { isOpen, setIsOpen } = useChainOfThought();
 
     return (
@@ -105,8 +105,7 @@ export const ChainOfThoughtHeader = memo(
         </CollapsibleTrigger>
       </Collapsible>
     );
-  }
-);
+  });
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
   icon?: LucideIcon;
@@ -183,8 +182,8 @@ export type ChainOfThoughtContentProps = ComponentProps<
   typeof CollapsibleContent
 >;
 
-export const ChainOfThoughtContent = memo(
-  ({ className, children, ...props }: ChainOfThoughtContentProps) => {
+export const ChainOfThoughtContent: NamedExoticComponent<ChainOfThoughtContentProps> =
+  memo(({ className, children, ...props }: ChainOfThoughtContentProps) => {
     const { isOpen } = useChainOfThought();
 
     return (
@@ -201,8 +200,7 @@ export const ChainOfThoughtContent = memo(
         </CollapsibleContent>
       </Collapsible>
     );
-  }
-);
+  });
 
 export type ChainOfThoughtImageProps = ComponentProps<"div"> & {
   caption?: string;

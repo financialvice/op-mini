@@ -17,7 +17,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --unsafe --write",
     "start": "expo start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:legacy": "tsc --noEmit",
     "web": "expo start --web",
     "storybook-generate": "sb-rn-get-stories"
   },

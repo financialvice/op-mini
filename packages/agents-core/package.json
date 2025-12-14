@@ -12,7 +12,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "lint:fix:unsafe": "biome check . --unsafe --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "typecheck:legacy": "tsc --noEmit"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"

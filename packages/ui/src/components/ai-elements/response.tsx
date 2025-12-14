@@ -1,12 +1,12 @@
 "use client";
 
 import { cn } from "@repo/ui/lib/utils";
-import { type ComponentProps, memo } from "react";
+import { type ComponentProps, memo, type NamedExoticComponent } from "react";
 import { Streamdown } from "streamdown";
 
 type ResponseProps = ComponentProps<typeof Streamdown>;
 
-export const Response = memo(
+export const Response: NamedExoticComponent<ResponseProps> = memo(
   ({ className, ...props }: ResponseProps) => (
     <Streamdown
       className={cn(

@@ -33,6 +33,7 @@ import {
   type ClipboardEventHandler,
   type ComponentProps,
   createContext,
+  type FC,
   type FormEvent,
   type FormEventHandler,
   Fragment,
@@ -610,9 +611,9 @@ export const PromptInputButton = ({
 };
 
 export type PromptInputActionMenuProps = ComponentProps<typeof DropdownMenu>;
-export const PromptInputActionMenu = (props: PromptInputActionMenuProps) => (
-  <DropdownMenu {...props} />
-);
+export const PromptInputActionMenu: FC<PromptInputActionMenuProps> = (
+  props
+) => <DropdownMenu {...props} />;
 
 export type PromptInputActionMenuTriggerProps = ComponentProps<
   typeof Button
@@ -632,22 +633,19 @@ export const PromptInputActionMenuTrigger = ({
 export type PromptInputActionMenuContentProps = ComponentProps<
   typeof DropdownMenuContent
 >;
-export const PromptInputActionMenuContent = ({
-  className,
-  ...props
-}: PromptInputActionMenuContentProps) => (
+export const PromptInputActionMenuContent: FC<
+  PromptInputActionMenuContentProps
+> = ({ className, ...props }) => (
   <DropdownMenuContent align="start" className={cn(className)} {...props} />
 );
 
 export type PromptInputActionMenuItemProps = ComponentProps<
   typeof DropdownMenuItem
 >;
-export const PromptInputActionMenuItem = ({
+export const PromptInputActionMenuItem: FC<PromptInputActionMenuItemProps> = ({
   className,
   ...props
-}: PromptInputActionMenuItemProps) => (
-  <DropdownMenuItem className={cn(className)} {...props} />
-);
+}) => <DropdownMenuItem className={cn(className)} {...props} />;
 
 // Note: Actions that perform side-effects (like opening a file dialog)
 // are provided in opt-in modules (e.g., prompt-input-attachments).
@@ -690,18 +688,17 @@ export const PromptInputSubmit = ({
 
 export type PromptInputModelSelectProps = ComponentProps<typeof Select>;
 
-export const PromptInputModelSelect = (props: PromptInputModelSelectProps) => (
-  <Select {...props} />
-);
+export const PromptInputModelSelect: FC<PromptInputModelSelectProps> = (
+  props
+) => <Select {...props} />;
 
 export type PromptInputModelSelectTriggerProps = ComponentProps<
   typeof SelectTrigger
 >;
 
-export const PromptInputModelSelectTrigger = ({
-  className,
-  ...props
-}: PromptInputModelSelectTriggerProps) => (
+export const PromptInputModelSelectTrigger: FC<
+  PromptInputModelSelectTriggerProps
+> = ({ className, ...props }) => (
   <SelectTrigger
     className={cn(
       "border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors",
@@ -716,19 +713,17 @@ export type PromptInputModelSelectContentProps = ComponentProps<
   typeof SelectContent
 >;
 
-export const PromptInputModelSelectContent = ({
-  className,
-  ...props
-}: PromptInputModelSelectContentProps) => (
+export const PromptInputModelSelectContent: FC<
+  PromptInputModelSelectContentProps
+> = ({ className, ...props }) => (
   <SelectContent className={cn(className)} {...props} />
 );
 
 export type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
 
-export const PromptInputModelSelectItem = ({
-  className,
-  ...props
-}: PromptInputModelSelectItemProps) => (
+export const PromptInputModelSelectItem: FC<
+  PromptInputModelSelectItemProps
+> = ({ className, ...props }) => (
   <SelectItem className={cn(className)} {...props} />
 );
 
@@ -736,9 +731,8 @@ export type PromptInputModelSelectValueProps = ComponentProps<
   typeof SelectValue
 >;
 
-export const PromptInputModelSelectValue = ({
-  className,
-  ...props
-}: PromptInputModelSelectValueProps) => (
+export const PromptInputModelSelectValue: FC<
+  PromptInputModelSelectValueProps
+> = ({ className, ...props }) => (
   <SelectValue className={cn(className)} {...props} />
 );

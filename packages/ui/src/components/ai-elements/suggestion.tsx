@@ -3,15 +3,15 @@
 import { Button } from "@repo/ui/components/button";
 import { ScrollArea, ScrollBar } from "@repo/ui/components/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 export type SuggestionsProps = ComponentProps<typeof ScrollArea>;
 
-export const Suggestions = ({
+export const Suggestions: FC<SuggestionsProps> = ({
   className,
   children,
   ...props
-}: SuggestionsProps) => (
+}) => (
   <ScrollArea className="w-full overflow-x-auto whitespace-nowrap" {...props}>
     <div className={cn("flex w-max flex-nowrap items-center gap-2", className)}>
       {children}

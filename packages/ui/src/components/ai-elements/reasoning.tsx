@@ -8,7 +8,7 @@ import {
 } from "@repo/ui/components/collapsible";
 import { cn } from "@repo/ui/lib/utils";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, NamedExoticComponent } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Response } from "./response";
 
@@ -122,8 +122,8 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
   return <p>Thought for {duration} seconds</p>;
 };
 
-export const ReasoningTrigger = memo(
-  ({ className, children, ...props }: ReasoningTriggerProps) => {
+export const ReasoningTrigger: NamedExoticComponent<ReasoningTriggerProps> =
+  memo(({ className, children, ...props }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning();
 
     return (
@@ -148,8 +148,7 @@ export const ReasoningTrigger = memo(
         )}
       </CollapsibleTrigger>
     );
-  }
-);
+  });
 
 export type ReasoningContentProps = ComponentProps<
   typeof CollapsibleContent
