@@ -1,6 +1,7 @@
 "use client";
 
 import { db } from "@repo/db";
+import { trpc } from "@repo/trpc/client";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
+import { useMutation } from "@tanstack/react-query";
 import {
   CheckCircle,
   ClipboardCopy,
@@ -77,32 +79,6 @@ function formatCountdown(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
-async function refreshCodexToken(refreshToken: string): Promise<{
-  access_token?: string;
-  refresh_token?: string;
-  id_token?: string;
-}> {
-  const response = await fetch("/api/oauth/codex/refresh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      refresh_token: refreshToken,
-      client_id: "app_EMoamEEZ73f0CkXaXp7hrann",
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Token refresh failed: ${errorText}`);
-  }
-
-  return response.json() as Promise<{
-    access_token?: string;
-    refresh_token?: string;
-    id_token?: string;
-  }>;
 }
 
 // Extracted component for token status display
@@ -299,12 +275,21 @@ export function CodexDeviceAuthCard() {
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const expiryIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const codexDeviceInitMutation = useMutation(
+    trpc.oauth.codexDeviceInit.mutationOptions()
+  );
+  const codexDevicePollMutation = useMutation(
+    trpc.oauth.codexDevicePoll.mutationOptions()
+  );
+  const codexRefreshMutation = useMutation(
+    trpc.oauth.codexRefresh.mutationOptions()
+  );
+  const codexTestMutation = useMutation(trpc.oauth.codexTest.mutationOptions());
 
   const cleanup = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -362,16 +347,13 @@ export function CodexDeviceAuthCard() {
     cleanup();
 
     try {
-      const response = await fetch("/api/oauth/codex/device", {
-        method: "POST",
-      });
+      const result = await codexDeviceInitMutation.mutateAsync(undefined);
 
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string };
-        throw new Error(errorData.error ?? "Failed to start device flow");
+      if ("error" in result && result.error) {
+        throw new Error(result.error);
       }
 
-      const data = (await response.json()) as DeviceCodeData;
+      const data = result.data as DeviceCodeData;
       setDeviceCode(data);
       setTimeRemaining(data.expires_in);
       setAuthState("awaiting_user");
@@ -391,26 +373,24 @@ export function CodexDeviceAuthCard() {
       const pollInterval = (data.interval || 5) * 1000;
       pollIntervalRef.current = setInterval(async () => {
         try {
-          const pollResponse = await fetch("/api/oauth/codex/device/poll", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              device_auth_id: data.device_auth_id,
-              user_code: data.user_code,
-            }),
+          const pollResult = await codexDevicePollMutation.mutateAsync({
+            deviceAuthId: data.device_auth_id,
+            userCode: data.user_code,
           });
 
-          const pollData = (await pollResponse.json()) as PollResponse;
-
-          if (pollData.error) {
+          if ("error" in pollResult && pollResult.error) {
             cleanup();
             setAuthState("error");
-            setError(pollData.error);
+            setError(pollResult.error);
             return;
           }
 
-          if (pollData.status === "complete" && pollData.tokens) {
-            await handlePollSuccess(pollData.tokens);
+          if (
+            pollResult.status === "complete" &&
+            "tokens" in pollResult &&
+            pollResult.tokens
+          ) {
+            await handlePollSuccess(pollResult.tokens);
           }
         } catch (pollError) {
           console.error("Poll error:", pollError);
@@ -420,7 +400,13 @@ export function CodexDeviceAuthCard() {
       setAuthState("error");
       setError(err instanceof Error ? err.message : "Failed to start auth");
     }
-  }, [userId, cleanup, handlePollSuccess]);
+  }, [
+    userId,
+    cleanup,
+    handlePollSuccess,
+    codexDeviceInitMutation,
+    codexDevicePollMutation,
+  ]);
 
   const cancelFlow = useCallback(() => {
     cleanup();
@@ -436,10 +422,21 @@ export function CodexDeviceAuthCard() {
     }
 
     setError(null);
-    setIsRefreshing(true);
 
     try {
-      const tokenData = await refreshCodexToken(token.refreshToken);
+      const result = await codexRefreshMutation.mutateAsync({
+        refreshToken: token.refreshToken,
+      });
+
+      if ("error" in result && result.error) {
+        throw new Error("Token refresh failed");
+      }
+
+      const tokenData = result.data as {
+        access_token?: string;
+        refresh_token?: string;
+        id_token?: string;
+      };
 
       if (!tokenData.access_token) {
         throw new Error("No access token in refresh response");
@@ -455,10 +452,8 @@ export function CodexDeviceAuthCard() {
       setTestResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
-    } finally {
-      setIsRefreshing(false);
     }
-  }, [storedToken]);
+  }, [storedToken, codexRefreshMutation]);
 
   const handleDeleteToken = useCallback(async () => {
     if (!storedToken?.id) {
@@ -477,30 +472,25 @@ export function CodexDeviceAuthCard() {
     }
 
     setTestResult(null);
-    setIsTesting(true);
 
     try {
-      const response = await fetch("/api/oauth/codex/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: token.accessToken }),
+      const result = await codexTestMutation.mutateAsync({
+        accessToken: token.accessToken,
       });
 
-      const data = (await response.json()) as OpenAIResponse;
-
-      if (!response.ok) {
-        setTestResult(`Error: ${data.error?.message ?? "Request failed"}`);
+      if ("error" in result && result.error) {
+        const errorData = result.error as OpenAIResponse["error"];
+        setTestResult(`Error: ${errorData?.message ?? "Request failed"}`);
         return;
       }
 
+      const data = result.data as OpenAIResponse;
       const text = data.choices?.[0]?.message?.content;
       setTestResult(text ?? "No response content");
     } catch (err) {
       setTestResult(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setIsTesting(false);
     }
-  }, [storedToken]);
+  }, [storedToken, codexTestMutation]);
 
   if (isTokenLoading) {
     return (
@@ -517,8 +507,8 @@ export function CodexDeviceAuthCard() {
       <TokenStatusCard
         error={error}
         isExpired={isExpired}
-        isRefreshing={isRefreshing}
-        isTesting={isTesting}
+        isRefreshing={codexRefreshMutation.isPending}
+        isTesting={codexTestMutation.isPending}
         onDelete={handleDeleteToken}
         onReauth={startDeviceFlow}
         onRefresh={handleRefreshToken}

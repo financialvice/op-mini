@@ -1,6 +1,7 @@
 "use client";
 
 import { db } from "@repo/db";
+import { trpc } from "@repo/trpc/client";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -16,6 +17,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { useMutation } from "@tanstack/react-query";
 import {
   CheckCircle,
   ExternalLink,
@@ -95,11 +97,11 @@ function generateState(): string {
     .replace(/=+$/, "");
 }
 
-// Exchange code for token via API route (avoids CORS)
-async function exchangeCodeForToken(
+// Validate PKCE state and extract code
+function validateAndExtractCode(
   authCode: string,
   pkceState: PKCEState
-): Promise<OAuthTokenResponse> {
+): string {
   const [code, pastedState] = authCode.split("#");
 
   if (!(code && pastedState)) {
@@ -110,47 +112,7 @@ async function exchangeCodeForToken(
     throw new Error("State mismatch - possible CSRF attack");
   }
 
-  const response = await fetch("/api/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "authorization_code",
-      code,
-      state: pastedState,
-      code_verifier: pkceState.codeVerifier,
-      redirect_uri: OAUTH_CONFIG.redirectUri,
-      client_id: OAUTH_CONFIG.clientId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Token exchange failed: ${errorText}`);
-  }
-
-  return (await response.json()) as OAuthTokenResponse;
-}
-
-// Refresh token via API route
-async function refreshAccessToken(
-  refreshToken: string
-): Promise<OAuthTokenResponse> {
-  const response = await fetch("/api/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      client_id: OAUTH_CONFIG.clientId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Token refresh failed: ${errorText}`);
-  }
-
-  return (await response.json()) as OAuthTokenResponse;
+  return code;
 }
 
 function formatTimeRemaining(expiresAt: Date): string {
@@ -337,9 +299,14 @@ function ClaudeOAuthSection() {
   const [pkceState, setPkceState] = useState<PKCEState | null>(null);
   const [authCode, setAuthCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isExchanging, setIsExchanging] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+
+  const anthropicTokenMutation = useMutation(
+    trpc.oauth.anthropicToken.mutationOptions()
+  );
+  const anthropicTestMutation = useMutation(
+    trpc.oauth.anthropicTest.mutationOptions()
+  );
 
   const handleStartAuth = useCallback(async () => {
     setError(null);
@@ -374,10 +341,26 @@ function ClaudeOAuthSection() {
     }
 
     setError(null);
-    setIsExchanging(true);
 
     try {
-      const tokenData = await exchangeCodeForToken(authCode, pkceState);
+      const code = validateAndExtractCode(authCode, pkceState);
+
+      const result = await anthropicTokenMutation.mutateAsync({
+        grant_type: "authorization_code",
+        code,
+        state: pkceState.state,
+        code_verifier: pkceState.codeVerifier,
+        redirect_uri: OAUTH_CONFIG.redirectUri,
+        client_id: OAUTH_CONFIG.clientId,
+      });
+
+      if ("error" in result && result.error) {
+        throw new Error(
+          `Token exchange failed: ${JSON.stringify(result.error)}`
+        );
+      }
+
+      const tokenData = result.data as unknown as OAuthTokenResponse;
 
       if (storedToken?.id) {
         await db.deleteOAuthToken(storedToken.id);
@@ -394,10 +377,8 @@ function ClaudeOAuthSection() {
       setAuthCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setIsExchanging(false);
     }
-  }, [pkceState, authCode, userId, storedToken?.id]);
+  }, [pkceState, authCode, userId, storedToken?.id, anthropicTokenMutation]);
 
   const handleRefreshToken = useCallback(async () => {
     if (!(storedToken?.refreshToken && storedToken.id)) {
@@ -405,10 +386,19 @@ function ClaudeOAuthSection() {
     }
 
     setError(null);
-    setIsRefreshing(true);
 
     try {
-      const tokenData = await refreshAccessToken(storedToken.refreshToken);
+      const result = await anthropicTokenMutation.mutateAsync({
+        grant_type: "refresh_token",
+        refresh_token: storedToken.refreshToken,
+        client_id: OAUTH_CONFIG.clientId,
+      });
+
+      if ("error" in result && result.error) {
+        throw new Error("Token refresh failed");
+      }
+
+      const tokenData = result.data as unknown as OAuthTokenResponse;
 
       await db.updateOAuthToken(storedToken.id, {
         accessToken: tokenData.access_token,
@@ -417,10 +407,8 @@ function ClaudeOAuthSection() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
-    } finally {
-      setIsRefreshing(false);
     }
-  }, [storedToken]);
+  }, [storedToken, anthropicTokenMutation]);
 
   const handleDeleteToken = useCallback(async () => {
     if (!storedToken?.id) {
@@ -439,19 +427,16 @@ function ClaudeOAuthSection() {
     setTestResult(null);
 
     try {
-      const response = await fetch("/api/oauth/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: storedToken.accessToken }),
+      const result = await anthropicTestMutation.mutateAsync({
+        accessToken: storedToken.accessToken,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        setTestResult(`Error: ${errorText}`);
+      if ("error" in result && result.error) {
+        setTestResult(`Error: ${JSON.stringify(result.error)}`);
         return;
       }
 
-      const data = (await response.json()) as {
+      const data = result.data as {
         content: Array<{ type: string; text?: string }>;
       };
       const text = data.content.find((c) => c.type === "text")?.text;
@@ -459,7 +444,7 @@ function ClaudeOAuthSection() {
     } catch (err) {
       setTestResult(err instanceof Error ? err.message : "Request failed");
     }
-  }, [storedToken?.accessToken]);
+  }, [storedToken?.accessToken, anthropicTestMutation]);
 
   if (isLoading) {
     return (
@@ -474,7 +459,7 @@ function ClaudeOAuthSection() {
       {storedToken && (
         <TokenStatusCard
           isExpired={isExpired}
-          isRefreshing={isRefreshing}
+          isRefreshing={anthropicTokenMutation.isPending}
           onDelete={handleDeleteToken}
           onRefresh={handleRefreshToken}
           onTest={handleTestToken}
@@ -494,7 +479,7 @@ function ClaudeOAuthSection() {
       {!storedToken && (
         <AuthFlowCard
           authCode={authCode}
-          isExchanging={isExchanging}
+          isExchanging={anthropicTokenMutation.isPending}
           onAuthCodeChange={setAuthCode}
           onExchangeCode={handleExchangeCode}
           onStartAuth={handleStartAuth}
@@ -513,7 +498,7 @@ function ClaudeOAuthSection() {
           <CardContent className="space-y-4">
             <AuthFlowCard
               authCode={authCode}
-              isExchanging={isExchanging}
+              isExchanging={anthropicTokenMutation.isPending}
               onAuthCodeChange={setAuthCode}
               onExchangeCode={handleExchangeCode}
               onStartAuth={handleStartAuth}

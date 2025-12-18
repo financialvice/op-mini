@@ -4,6 +4,7 @@ import { hetznerRouter } from "./routers/hetzner";
 import { instantdbRouter } from "./routers/instantdb";
 import { machinesRouter } from "./routers/machines";
 import { morphRouter } from "./routers/morph";
+import { oauthRouter } from "./routers/oauth";
 import { sessionsRouter } from "./routers/sessions";
 import { t } from "./server";
 
@@ -14,6 +15,7 @@ export const appRouter = t.router({
   instantdb: instantdbRouter,
   morph: morphRouter,
   machines: machinesRouter,
+  oauth: oauthRouter,
   sessions: sessionsRouter,
 });
 
