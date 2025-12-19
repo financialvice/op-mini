@@ -26,7 +26,7 @@
     ],
     "catalog": {
       "@ai-sdk/react": "2.0.76",
-      "@anthropic-ai/claude-agent-sdk": "0.1.69",
+      "@anthropic-ai/claude-agent-sdk": "0.1.72",
       "@babel/core": "^7.20.0",
       "@expo/metro-config": "54.0.2",
       "@expo/vector-icons": "15.0.3",
@@ -194,7 +194,7 @@
       "zod": "4.1.12",
       "zustand": "5.0.7",
       "tsup": "8.5.0",
-      "@openai/codex-sdk": "0.72.0",
+      "@openai/codex-sdk": "0.75.0",
       "@elysiajs/eden": "1.4.5"
     },
     "catalogs": {}

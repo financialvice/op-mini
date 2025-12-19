@@ -1,4 +1,5 @@
 import { authRouter } from "./routers/auth";
+import { claudeRouter } from "./routers/claude";
 import { helloRouter } from "./routers/hello";
 import { hetznerRouter } from "./routers/hetzner";
 import { instantdbRouter } from "./routers/instantdb";
@@ -10,6 +11,7 @@ import { t } from "./server";
 
 export const appRouter = t.router({
   auth: authRouter,
+  claude: claudeRouter,
   hello: helloRouter,
   hetzner: hetznerRouter,
   instantdb: instantdbRouter,

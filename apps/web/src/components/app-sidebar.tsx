@@ -43,6 +43,11 @@ const items = [
     url: "/databases",
     icon: DatabaseIcon,
   },
+  {
+    title: "Launcher",
+    url: "/launcher",
+    icon: MessageCircleIcon,
+  },
 ];
 
 export function AppSidebar() {

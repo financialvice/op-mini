@@ -8,15 +8,23 @@ export default function TemplatesPage() {
   const queryClient = useQueryClient();
 
   // Morph templates
-  const { data: morphTemplates } = useQuery(
-    trpc.morph.templates.list.queryOptions()
-  );
+  const { data: morphTemplates } = useQuery({
+    ...trpc.morph.instances.list.queryOptions({
+      metadata: { type: "template" },
+    }),
+    queryKey: trpc.morph.instances.list.queryKey({
+      metadata: { type: "template" },
+    }),
+  });
+
   const { mutateAsync: createMorphTemplate, isPending: creatingMorph } =
     useMutation(
       trpc.morph.templates.create.mutationOptions({
         onSuccess: () =>
           queryClient.invalidateQueries({
-            queryKey: trpc.morph.templates.list.queryKey(),
+            queryKey: trpc.morph.instances.list.queryKey({
+              metadata: { type: "template" },
+            }),
           }),
       })
     );
@@ -57,7 +65,7 @@ export default function TemplatesPage() {
             </button>
           </div>
           <div className="flex flex-col gap-1">
-            {morphTemplates?.templates.map((template) => (
+            {morphTemplates?.instances.map((template) => (
               <div
                 className="rounded border px-2 py-1 font-mono text-sm"
                 key={template.id}
@@ -65,7 +73,7 @@ export default function TemplatesPage() {
                 {template.metadata?.name ?? template.id}
               </div>
             ))}
-            {morphTemplates?.templates.length === 0 && (
+            {morphTemplates?.instances.length === 0 && (
               <div className="text-gray-500 text-sm">No templates</div>
             )}
           </div>

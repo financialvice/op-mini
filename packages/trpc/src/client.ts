@@ -1,5 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpBatchStreamLink,
+  httpSubscriptionLink,
+  splitLink,
+} from "@trpc/client";
 import {
   createTRPCContext,
   createTRPCOptionsProxy,
@@ -38,13 +43,21 @@ export const setAuthTokenGetter = (getter: () => string | undefined) => {
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
-    httpBatchLink({
-      url: `${getBaseUrl()}/api/trpc`,
-      transformer: SuperJSON,
-      headers() {
-        const token = getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
-      },
+    splitLink({
+      // uses the httpSubscriptionLink for subscriptions
+      condition: (op) => op.type === "subscription",
+      true: httpSubscriptionLink({
+        url: `${getBaseUrl()}/api/trpc`,
+        transformer: SuperJSON,
+      }),
+      false: httpBatchStreamLink({
+        url: `${getBaseUrl()}/api/trpc`,
+        transformer: SuperJSON,
+        headers() {
+          const token = getAuthToken?.();
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        },
+      }),
     }),
   ],
 });

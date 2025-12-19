@@ -131,14 +131,6 @@ export const morphRouter = t.router({
           throw error;
         }
       }),
-    list: t.procedure.query(async () => {
-      const templates = await morph.instances.list({
-        metadata: {
-          type: "template",
-        },
-      });
-      return { templates: templates.map((template) => ({ ...template })) };
-    }),
   },
   snapshots: {
     // list all snapshots
@@ -170,11 +162,33 @@ export const morphRouter = t.router({
       }),
   },
   instances: {
+    // full overwrite of metadata
+    setMetadata: t.procedure
+      .input(
+        z.object({
+          instanceId: z.string(),
+          metadata: z.record(z.string(), z.string()),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await morph.instances
+          .get({ instanceId: input.instanceId })
+          .then((instance) => instance.setMetadata(input.metadata));
+      }),
     // list all instances
-    list: t.procedure.query(async () => {
-      const instances = await morph.instances.list();
-      return { instances: instances.map((instance) => ({ ...instance })) };
-    }),
+    // metadata filter is optional, exact match only, all specified keys must match
+    list: t.procedure
+      .input(
+        z
+          .object({ metadata: z.record(z.string(), z.string()).optional() })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        const instances = await morph.instances.list({
+          metadata: input?.metadata,
+        });
+        return { instances: instances.map((instance) => ({ ...instance })) };
+      }),
     // create a new instance
     create: t.procedure.mutation(async () => {
       const snapshot = await morph.snapshots.create({
