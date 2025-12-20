@@ -27,6 +27,7 @@ export type { UserInput } from "./codex-types/v2/UserInput";
 import type { RequestId } from "./codex-types/RequestId";
 import type { ServerNotification } from "./codex-types/ServerNotification";
 import type { ServerRequest } from "./codex-types/ServerRequest";
+import type { ThreadResumeResponse } from "./codex-types/v2";
 import type { ThreadStartParams } from "./codex-types/v2/ThreadStartParams";
 import type { ThreadStartResponse } from "./codex-types/v2/ThreadStartResponse";
 import type { TurnStartParams } from "./codex-types/v2/TurnStartParams";
@@ -177,7 +178,7 @@ export class CodexRpcClient {
     return this.request("thread/start", fullParams);
   }
 
-  threadResume(threadId: string): Promise<ThreadStartResponse> {
+  threadResume(threadId: string): Promise<ThreadResumeResponse> {
     return this.request("thread/resume", { threadId });
   }
 
@@ -187,5 +188,21 @@ export class CodexRpcClient {
 
   turnInterrupt(threadId: string, turnId: string): Promise<void> {
     return this.request("turn/interrupt", { threadId, turnId });
+  }
+
+  threadList(params?: {
+    cursor?: string | null;
+    limit?: number;
+    modelProviders?: string[];
+  }): Promise<{
+    data: Array<{
+      id: string;
+      preview: string;
+      modelProvider: string;
+      createdAt: number;
+    }>;
+    nextCursor: string | null;
+  }> {
+    return this.request("thread/list", params ?? {});
   }
 }

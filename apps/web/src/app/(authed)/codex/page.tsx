@@ -1,10 +1,11 @@
 "use client";
 
-import { useTRPCClient } from "@repo/trpc/client";
+import { useTRPC, useTRPCClient } from "@repo/trpc/client";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
-import { useCallback, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Message =
   | { id: string; role: "user"; content: string }
@@ -138,13 +139,76 @@ function MessageView({ msg }: { msg: Message }) {
   );
 }
 
+function convertThreadItemToMessage(item: {
+  type?: string;
+  id: string;
+  content?: unknown[];
+  text?: string;
+  command?: string;
+  changes?: unknown;
+}): Message | null {
+  if (!("type" in item)) {
+    return null;
+  }
+
+  if (
+    item.type === "userMessage" &&
+    "content" in item &&
+    Array.isArray(item.content)
+  ) {
+    const textContent = item.content
+      .filter(
+        (c): c is { type: "text"; text: string } =>
+          typeof c === "object" &&
+          c !== null &&
+          "type" in c &&
+          c.type === "text" &&
+          "text" in c
+      )
+      .map((c) => c.text)
+      .join(" ");
+    if (textContent) {
+      return { id: item.id, role: "user", content: textContent };
+    }
+  } else if (
+    item.type === "agentMessage" &&
+    "text" in item &&
+    typeof item.text === "string"
+  ) {
+    return { id: item.id, role: "assistant", content: item.text };
+  } else if (
+    item.type === "commandExecution" &&
+    "command" in item &&
+    typeof item.command === "string"
+  ) {
+    return { id: item.id, role: "command", command: item.command, output: "" };
+  } else if (item.type === "fileChange" && "changes" in item) {
+    return {
+      id: item.id,
+      role: "file",
+      changes: JSON.stringify(item.changes, null, 2),
+    };
+  }
+  return null;
+}
+
 export default function CodexPage() {
   const client = useTRPCClient();
+  const trpc = useTRPC();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const assistantTextRef = useRef("");
+
+  // Fetch thread list
+  const { data: threadList } = useQuery(trpc.codex.listThreads.queryOptions());
+
+  // Fetch thread history when threadId changes
+  const { data: threadHistory } = useQuery({
+    ...trpc.codex.getThreadHistory.queryOptions({ threadId: threadId ?? "" }),
+    enabled: !!threadId,
+  });
 
   const processStream = useCallback(async (stream: AsyncIterable<unknown>) => {
     assistantTextRef.current = "";
@@ -192,6 +256,29 @@ export default function CodexPage() {
     }
   }, []);
 
+  // Convert thread history to messages when it changes
+  useEffect(() => {
+    if (!threadHistory) {
+      setMessages([]);
+      return;
+    }
+
+    const msgs: Message[] = [];
+    for (const turn of threadHistory.thread.turns || []) {
+      for (const item of turn.items || []) {
+        const msg = convertThreadItemToMessage(item);
+        if (msg) {
+          msgs.push(msg);
+        }
+      }
+    }
+    setMessages(msgs);
+  }, [threadHistory]);
+
+  const loadThread = useCallback((id: string) => {
+    setThreadId(id);
+  }, []);
+
   const send = useCallback(
     async (content: string) => {
       if (!content.trim() || isStreaming) {
@@ -231,6 +318,31 @@ export default function CodexPage() {
   return (
     <div className="flex h-full flex-col p-4">
       <h1 className="mb-4 font-bold text-xl">Codex (MorphCloud VM)</h1>
+
+      {threadList?.data && threadList.data.length > 0 && (
+        <Card className="mb-4 p-3">
+          <h2 className="mb-2 font-semibold text-sm">Recent Threads</h2>
+          <div className="space-y-1">
+            {threadList.data.map(
+              (thread: { id: string; preview: string; createdAt: number }) => (
+                <button
+                  className={`block w-full rounded px-2 py-1 text-left text-sm hover:bg-muted ${
+                    threadId === thread.id ? "bg-muted font-medium" : ""
+                  }`}
+                  key={thread.id}
+                  onClick={() => loadThread(thread.id)}
+                  type="button"
+                >
+                  <div className="truncate">{thread.preview || "Untitled"}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {new Date(thread.createdAt * 1000).toLocaleDateString()}
+                  </div>
+                </button>
+              )
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="flex-1 space-y-3 overflow-auto">
         {messages.map((msg) => (

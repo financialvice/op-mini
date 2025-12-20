@@ -144,6 +144,59 @@ function createCodexClient(tokens?: CodexTokens): Promise<{
 
 export const codexRouter = t.router({
   /**
+   * Get thread history (resumes thread and returns conversation)
+   */
+  getThreadHistory: t.procedure
+    .input(z.object({ threadId: z.string() }))
+    .query(async ({ input }) => {
+      const tokens = {
+        accessToken: process.env.CODEX_ACCESS_TOKEN!,
+        idToken: process.env.CODEX_ID_TOKEN!,
+      };
+      const { client, cleanup } = await createCodexClient(tokens);
+
+      try {
+        await client.initialize();
+        const result = await client.threadResume(input.threadId);
+        return result;
+      } finally {
+        cleanup();
+      }
+    }),
+
+  /**
+   * List threads with pagination
+   */
+  listThreads: t.procedure
+    .input(
+      z
+        .object({
+          cursor: z.string().nullish(),
+          limit: z.number().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      // Hardcoded tokens for now
+      const tokens = {
+        accessToken: process.env.CODEX_ACCESS_TOKEN!,
+        idToken: process.env.CODEX_ID_TOKEN!,
+      };
+      const { client, cleanup } = await createCodexClient(tokens);
+
+      try {
+        await client.initialize();
+        const result = await client.threadList({
+          cursor: input?.cursor ?? null,
+          limit: input?.limit ?? 20,
+        });
+        return result;
+      } finally {
+        cleanup();
+      }
+    }),
+
+  /**
    * Main chat endpoint - streams Codex events
    */
   chat: t.procedure
@@ -159,10 +212,8 @@ export const codexRouter = t.router({
     .mutation(async function* ({ input }) {
       // Hardcoded tokens for now
       const tokens = {
-        accessToken:
-          "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIiwiZXhwIjoxNzY2NTQ0MjY5LCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiODY1YjY2MWYtNWQ2Yi00MTc2LWIwYTQtMmU5MDM4MmVkZjI2IiwiY2hhdGdwdF9hY2NvdW50X3VzZXJfaWQiOiJ1c2VyLVpTVXVrNjROa1ZoUWFhVlRWNkR2SHRYSV9fODY1YjY2MWYtNWQ2Yi00MTc2LWIwYTQtMmU5MDM4MmVkZjI2IiwiY2hhdGdwdF9jb21wdXRlX3Jlc2lkZW5jeSI6Im5vX2NvbnN0cmFpbnQiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6InBybyIsImNoYXRncHRfdXNlcl9pZCI6InVzZXItWlNVdWs2NE5rVmhRYWFWVFY2RHZIdFhJIiwidXNlcl9pZCI6InVzZXItWlNVdWs2NE5rVmhRYWFWVFY2RHZIdFhJIn0sImh0dHBzOi8vYXBpLm9wZW5haS5jb20vbWZhIjp7InJlcXVpcmVkIjoieWVzIn0sImh0dHBzOi8vYXBpLm9wZW5haS5jb20vcHJvZmlsZSI6eyJlbWFpbCI6ImNhbUBkdWJkdWJkdWIueHl6IiwiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJpYXQiOjE3NjU2ODAyNjgsImlzcyI6Imh0dHBzOi8vYXV0aC5vcGVuYWkuY29tIiwianRpIjoiOTdjZGQwMjktNmE0YS00OWQ4LWIyNjYtOWQ2ZmI3NzZmZGVjIiwibmJmIjoxNzY1NjgwMjY4LCJwd2RfYXV0aF90aW1lIjoxNzY1NjgwMjUyODQzLCJzY3AiOlsib3BlbmlkIiwicHJvZmlsZSIsImVtYWlsIiwib2ZmbGluZV9hY2Nlc3MiXSwic2Vzc2lvbl9pZCI6ImF1dGhzZXNzX1hSZGgxYmUzazJXTzZqeGJDVXhaUE1ZZyIsInN1YiI6ImF1dGgwfDY1YjI4YjIyZTNhM2Q1YjczNDkxZDQxMiJ9.P1qvnM8RzbjSIj9BoC3BcuxoY8OcjCgeNPIfQqYAb5oyzkbrV1D4s9OUGLyE8CnxPeZCfk6JzTryFBghmNkYJhPDRQEMDPQGVV6RE0giEElqKIJjBkxSM1k-UzMS61V7L33XIle-q8_8Es16ilXQxCswzULyIyXFuYBqlYo95F9_qqd-fXtmS94j_YHd37-_8j2o9L-k9HPsvXZB7FGQSO4Vopkm6TCQxS30F1Z-zS-uSv_Z818n7S9BpWrqGOIS78vBALM129vYlaHbEhAFfGrAC8sbsAJLsXFEwwMHg1XpFFHQ0ESJhqDDxfzJp4fCDOvFmnGZ0cLxV1TbmBFAUDRSFan12WD3MqTmT4t_-WmROGXMY5-Lk0jm24BUVzqnnkOoepNOvP4Lae_Jwz8vSlMJnlespwWLGlTgi4U6ZbRj44mV8-zvl2_EPdx6oLwKOft_NHbVzD0LvOYtuBvG064_52DP6WZMGTiYT9Ngof6vWi4_l-Ak3Z4gvZZnG4layUaWuNulBZIbNmGmXPC4_rhnudnJ_WdEdnqdC4ta70Jt9l6Rv2ol1QtASWds1MJraU1mHMGCrwHZbq4s68V4PY9IHOmNrEm72sQRI0D8YN2uFDKQPEw5B0II_wYxau1sDaaxNVLa_wMVqeR7bIB91IUK_9VKf6nizRWxpt-9JEQ",
-        idToken:
-          "eyJhbGciOiJSUzI1NiIsImtpZCI6ImIxZGQzZjhmLTlhYWQtNDdmZS1iMGU3LWVkYjAwOTc3N2Q2YiIsInR5cCI6IkpXVCJ9.eyJhdF9oYXNoIjoiQzZadWZ2RkhjazczZmh1WE9EN3ZjdyIsImF1ZCI6WyJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIl0sImF1dGhfcHJvdmlkZXIiOiJwYXNzd29yZCIsImF1dGhfdGltZSI6MTc2NTY4MDI1MiwiZW1haWwiOiJjYW1AZHViZHViZHViLnh5eiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJleHAiOjE3NjU2ODM4NjgsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X2FjY291bnRfaWQiOiI4NjViNjYxZi01ZDZiLTQxNzYtYjBhNC0yZTkwMzgyZWRmMjYiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6InBybyIsImNoYXRncHRfc3Vic2NyaXB0aW9uX2FjdGl2ZV9zdGFydCI6IjIwMjUtMDktMjhUMDk6MzQ6MDYrMDA6MDAiLCJjaGF0Z3B0X3N1YnNjcmlwdGlvbl9hY3RpdmVfdW50aWwiOiIyMDI1LTEyLTI4VDA5OjM0OjA2KzAwOjAwIiwiY2hhdGdwdF9zdWJzY3JpcHRpb25fbGFzdF9jaGVja2VkIjoiMjAyNS0xMi0xNFQwMjo0NDoxMi44NDM4MzQrMDA6MDAiLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLVpTVXVrNjROa1ZoUWFhVlRWNkR2SHRYSSIsImdyb3VwcyI6WyJhcGktZGF0YS1zaGFyaW5nLWluY2VudGl2ZXMtcHJvZ3JhbSIsInZlcmlmaWVkLW9yZ2FuaXphdGlvbiJdLCJvcmdhbml6YXRpb25zIjpbeyJpZCI6Im9yZy1rYlRlWEJpNWZVS2FwMHNRSDFZM05sM2MiLCJpc19kZWZhdWx0IjpmYWxzZSwicm9sZSI6Im93bmVyIiwidGl0bGUiOiJTd2l0Y2hib2FyZCJ9LHsiaWQiOiJvcmctOWZHT09kVkl4a21sNkNjR1U3czZjalBZIiwiaXNfZGVmYXVsdCI6dHJ1ZSwicm9sZSI6Im93bmVyIiwidGl0bGUiOiJkdWJkdWJkdWIgbGFicyBJbmNvcnBvcmF0ZWQifSx7ImlkIjoib3JnLWdGNkxEUkZmMGpOMHV3WkhWODhmbDZObyIsImlzX2RlZmF1bHQiOmZhbHNlLCJyb2xlIjoib3duZXIiLCJ0aXRsZSI6IlBlcnNvbmFsIn1dLCJ1c2VyX2lkIjoidXNlci1aU1V1azY0TmtWaFFhYVZUVjZEdkh0WEkifSwiaWF0IjoxNzY1NjgwMjY4LCJpc3MiOiJodHRwczovL2F1dGgub3BlbmFpLmNvbSIsImp0aSI6ImIwYjQyNThjLWIwZDQtNDM3Yy05MmRkLTdiOTQ1NzIwZWI1NiIsInJhdCI6MTc2NTY4MDIyNywic2lkIjoiZjNjMzM5YmUtOTU2NS00OGNmLWI5MWQtMDM2OWU5NzI5M2Y0Iiwic3ViIjoiYXV0aDB8NjViMjhiMjJlM2EzZDViNzM0OTFkNDEyIn0.wbR3TT9Fv8IavX6YYQ4yMOMRQoD0n_HExecHAnhDfwiN5BW9Ax27w49u3_Ru1AVdvLHRX-tZ3WZh_QZWBgaaPF-E8XVuCJ47OVPLtshiTQaE_sxYlSusa4NY3rrIIdq1oJTxKUcZOL1bwk3P7qEprzM8sTyoehMzRZsgRUdyT0Z-elAJv6O6DW0JommrA4xG8DI3DsI9W_2l73EBChMiuJZAezsgJDi2YNMw4H_TZ6IiZfhb2TK0H5WsFIUMOP7LcQg04772lZttAAAXQzaqOuPsEhEythggpyn-OOpWU9J0bdg7at84yS04zHu5cHOIlIeW5XsZMFWZtZ7YUrOOBNpHXJg4XeuFft016KjG-WX5kYj83hE1D3Y0wX-5DpQQEpsYJ_aDYXzFTgEm-MTAKzi9O48NdxAW59dn7ExoRSISPebe0_i69QGAOkdSu9JP_DM6vtS0UzAUjxDoB8CqTW7N4qqd1IBLO_VvVcEffSvnphva-AkPgS4XRMMaenQnSMe3nIGadVP4qG4nNcMwfSYdHsZqfUKZHnAIKUP3kvvFTAJzlgpBUPYE3XUCTOZw1HGpOC4nJSy9dsf4xFbMHIhlv-WDD9PeWHqtO-zTYaS0qKBAbr_KWZcqm1dgOtiAVXAnZU9umGeIKLPt6_VGMNEyL9S1YF5AuVqKfeazwTE",
+        accessToken: process.env.CODEX_ACCESS_TOKEN!,
+        idToken: process.env.CODEX_ID_TOKEN!,
       };
       const { client, cleanup } = await createCodexClient(tokens);
 
