@@ -31,6 +31,7 @@
     "ghostty-web": "^0.4.0",
     "lucide-react": "catalog:",
     "morphcloud": "^0.0.20",
+    "motion": "^12.23.26",
     "next": "catalog:",
     "posthog-js": "catalog:",
     "posthog-node": "catalog:",

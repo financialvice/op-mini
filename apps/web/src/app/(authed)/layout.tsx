@@ -13,7 +13,7 @@ import {
 import { Input } from "@repo/ui/components/input";
 import { SidebarProvider } from "@repo/ui/components/sidebar";
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -107,6 +107,8 @@ export default function AuthedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user } = db._client.useAuth();
 
+  const path = usePathname();
+
   // Set up auth token for tRPC
   useEffect(() => {
     // instant calls this refresh_token (its their access token)
@@ -117,13 +119,19 @@ export default function AuthedLayout({ children }: { children: ReactNode }) {
     <>
       <db.RedirectSignedOut onRedirect={() => router.push("/login")} />
       <db.SignedIn>
-        <SidebarProvider>
-          <AppSidebar />
-          <main className="relative h-screen flex-1 overflow-hidden pb-6">
-            <SetupGuard>{children}</SetupGuard>
-          </main>
-          <StatusBar />
-        </SidebarProvider>
+        <SetupGuard>
+          <div className="flex h-screen max-h-screen flex-col">
+            <SidebarProvider className="!min-h-auto h-full w-full">
+              {path !== "/canvas" && <AppSidebar />}
+              {path !== "/canvas" ? (
+                <main className="flex-1 overflow-hidden">{children}</main>
+              ) : (
+                children
+              )}
+            </SidebarProvider>
+            <StatusBar />
+          </div>
+        </SetupGuard>
       </db.SignedIn>
     </>
   );

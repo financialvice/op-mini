@@ -226,9 +226,20 @@ export const morphRouter = t.router({
   instance: {
     // start an instance from a snapshot
     start: t.procedure
-      .input(z.object({ snapshotId: z.string() }))
+      .input(
+        z.object({
+          snapshotId: z.string(),
+          metadata: z.record(z.string(), z.string()).optional(),
+        })
+      )
       .mutation(async ({ input }) => {
-        await morph.instances.start({ snapshotId: input.snapshotId });
+        const instance = await morph.instances.start({
+          snapshotId: input.snapshotId,
+          metadata: input.metadata,
+          ttlAction: "pause",
+          ttlSeconds: 120,
+        });
+        return { instanceId: instance.id, status: instance.status };
       }),
     // stop (delete) an instance, gone forever
     stop: t.procedure

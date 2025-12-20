@@ -25,7 +25,7 @@ export function StatusBar() {
   ).toFixed(2);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex h-6 items-center gap-2 border-t bg-background px-3 font-mono text-xs">
+    <div className="z-9999 flex h-6 items-center gap-2 border-t bg-background px-3 font-mono text-xs">
       <div className="flex items-center gap-1" title="Snapshots">
         <Layers className="h-3 w-3 text-muted-foreground" />
         <span>{stats.snapshotCount}</span>
