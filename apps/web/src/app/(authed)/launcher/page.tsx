@@ -1,7 +1,7 @@
 // docs for handling AskUserQuestion tool: https://platform.claude.com/docs/en/agent-sdk/permissions.md
 "use client";
 
-import { useTRPCClient } from "@repo/trpc/client";
+import { useTRPC, useTRPCClient } from "@repo/trpc/client";
 import { Button } from "@repo/ui/components/button";
 import { Card } from "@repo/ui/components/card";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -19,6 +19,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 
 type Question = {
@@ -431,7 +433,34 @@ function parseEvent(event: SDKEvent): {
   return { items, hasAsk };
 }
 
+function getStatusColorClass(status: string): string {
+  switch (status) {
+    case "ready":
+      return "text-green-500";
+    case "paused":
+      return "text-yellow-500";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <span className={getStatusColorClass(status)}>{status}</span>;
+}
+
+const SKILLS_SYSTEM_PROMPT = `You are an Operator agent helping users configure cloud machines.
+
+IMPORTANT: Before doing anything else, you MUST read and understand the following skills in order:
+1. First, read the "operator" skill to understand the Operator platform context
+2. Then, read the "machine-setup" skill to understand MorphCloud CLI commands
+3. Finally, read the "operator-machine-setup" skill to understand the machine setup workflow
+
+These skills are located in the .claude/skills/ directory. Read each SKILL.md file thoroughly.
+
+After reading all skills, use the AskUserQuestion tool to gather requirements about what kind of machine the user wants to set up.`;
+
 export default function LauncherPage() {
+  const trpc = useTRPC();
   const client = useTRPCClient();
   const [items, setItems] = useState<DisplayItem[]>([]);
   const [input, setInput] = useState("");
@@ -442,6 +471,23 @@ export default function LauncherPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isFirstRef = useRef(true);
+
+  // Fetch snapshots with 3s polling
+  const { data: snapshotsData } = useQuery({
+    ...trpc.morph.snapshots.list.queryOptions(),
+    refetchInterval: 3000,
+  });
+
+  // Fetch instances with 3s polling, filter for pinned ones
+  const { data: instancesData } = useQuery({
+    ...trpc.morph.instances.list.queryOptions(),
+    refetchInterval: 3000,
+  });
+
+  const pinnedInstances =
+    instancesData?.instances.filter(
+      (instance) => instance.metadata?.pinned === "true"
+    ) ?? [];
 
   const handleEvent = useCallback((event: SDKEvent) => {
     const e = event as { type?: string; subtype?: string; session_id?: string };
@@ -484,9 +530,7 @@ export default function LauncherPage() {
         const stream = await client.claude.chat.mutate({
           message: content,
           sessionId: sessionId ?? undefined,
-          appendSystemPrompt: isFirst
-            ? "ALWAYS use AskUserQuestion tool in the first turn"
-            : undefined,
+          appendSystemPrompt: isFirst ? SKILLS_SYSTEM_PROMPT : undefined,
         });
         for await (const event of stream) {
           handleEvent(event as SDKEvent);
@@ -584,44 +628,127 @@ export default function LauncherPage() {
   );
 
   return (
-    <div className="flex h-full flex-col p-4">
-      <div className="flex-1 space-y-3 overflow-auto">
-        {items.map((item) => (
-          <DisplayItemView
-            answers={answers}
-            isActive={
-              item.kind === "ask" && item.id === activeAskId && !item.answered
-            }
-            isSubmitting={isSubmitting}
-            item={item}
-            key={item.id}
-            onOtherTextChange={setOtherTextForQuestion}
-            onSelect={selectOption}
-            onSubmit={() =>
-              item.kind === "ask" && submitAnswer(item.id, item.questions)
-            }
-            otherTexts={otherTexts}
+    <div className="flex h-full gap-4 p-4">
+      {/* Left: Chat (narrower) */}
+      <div className="flex w-96 shrink-0 flex-col">
+        <div className="flex-1 space-y-3 overflow-auto">
+          {items.map((item) => (
+            <DisplayItemView
+              answers={answers}
+              isActive={
+                item.kind === "ask" && item.id === activeAskId && !item.answered
+              }
+              isSubmitting={isSubmitting}
+              item={item}
+              key={item.id}
+              onOtherTextChange={setOtherTextForQuestion}
+              onSelect={selectOption}
+              onSubmit={() =>
+                item.kind === "ask" && submitAnswer(item.id, item.questions)
+              }
+              otherTexts={otherTexts}
+            />
+          ))}
+          {isStreaming && (
+            <div className="text-muted-foreground">Thinking...</div>
+          )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Input
+            className="flex-1"
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !isStreaming && send(input)}
+            placeholder="Type a message..."
+            value={input}
           />
-        ))}
-        {isStreaming && (
-          <div className="text-muted-foreground">Thinking...</div>
-        )}
+          <Button
+            disabled={isStreaming}
+            onClick={() => send(input)}
+            type="button"
+          >
+            Send
+          </Button>
+        </div>
       </div>
-      <div className="mt-4 flex gap-2">
-        <Input
-          className="flex-1"
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !isStreaming && send(input)}
-          placeholder="Type a message..."
-          value={input}
-        />
-        <Button
-          disabled={isStreaming}
-          onClick={() => send(input)}
-          type="button"
-        >
-          Send
-        </Button>
+
+      {/* Right: Resources */}
+      <div className="flex flex-1 flex-col gap-4 overflow-auto">
+        {/* Snapshots */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-semibold text-lg">Snapshots</h2>
+          <div className="grid gap-1">
+            {snapshotsData?.snapshots.map((snapshot) => (
+              <Card
+                className="flex items-center justify-between px-3 py-2 font-mono text-xs"
+                key={snapshot.id}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="truncate">{snapshot.id}</span>
+                  <span className="text-muted-foreground">
+                    {snapshot.status}
+                  </span>
+                  {snapshot.metadata?.name && (
+                    <span className="text-muted-foreground">
+                      {snapshot.metadata.name}
+                    </span>
+                  )}
+                  {snapshot.metadata?.type && (
+                    <span className="rounded bg-muted px-1 text-muted-foreground">
+                      {snapshot.metadata.type}
+                    </span>
+                  )}
+                </div>
+              </Card>
+            ))}
+            {(!snapshotsData || snapshotsData.snapshots.length === 0) && (
+              <div className="text-muted-foreground text-sm">No snapshots</div>
+            )}
+          </div>
+        </div>
+
+        {/* Pinned Instances */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-semibold text-lg">Pinned Instances</h2>
+          <div className="grid gap-1">
+            {pinnedInstances.map((instance) => (
+              <Card
+                className="flex items-center justify-between px-3 py-2 font-mono text-xs"
+                key={instance.id}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="truncate">{instance.id}</span>
+                  <StatusBadge status={instance.status} />
+                  {instance.metadata?.name && (
+                    <span className="text-muted-foreground">
+                      {instance.metadata.name}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Link
+                    className="text-green-500 hover:text-green-400"
+                    href={`/terminal/${instance.id}?provider=morph`}
+                    title="Open terminal"
+                  >
+                    &gt;_
+                  </Link>
+                  <Link
+                    className="text-purple-500 hover:text-purple-400"
+                    href={`/chat/${instance.id}?provider=morph`}
+                    title="Open chat"
+                  >
+                    💬
+                  </Link>
+                </div>
+              </Card>
+            ))}
+            {pinnedInstances.length === 0 && (
+              <div className="text-muted-foreground text-sm">
+                No pinned instances
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

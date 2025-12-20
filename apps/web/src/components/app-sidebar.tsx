@@ -10,9 +10,11 @@ import {
 } from "@repo/ui/components/sidebar";
 import {
   BookTemplateIcon,
+  CloudIcon,
   DatabaseIcon,
   Home,
   MessageCircleIcon,
+  SquareMousePointerIcon,
   UserIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -47,6 +49,16 @@ const items = [
     title: "Launcher",
     url: "/launcher",
     icon: MessageCircleIcon,
+  },
+  {
+    title: "Canvas",
+    url: "/canvas",
+    icon: SquareMousePointerIcon,
+  },
+  {
+    title: "Spawned Claude",
+    url: "/spawned-claude",
+    icon: CloudIcon,
   },
 ];
 

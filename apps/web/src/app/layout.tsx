@@ -31,7 +31,7 @@ export default function RootLayout({
         <link href="https://http.cloud.morph.so" rel="dns-prefetch" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
         <Toaster />
