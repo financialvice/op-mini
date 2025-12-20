@@ -24,6 +24,7 @@
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "braintrust": "catalog:",
     "@openai/codex-sdk": "catalog:",
     "expo-server-sdk": "catalog:",
     "morphcloud": "^0.0.20",

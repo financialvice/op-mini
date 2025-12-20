@@ -1,6 +1,15 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import * as claudeSDK from "@anthropic-ai/claude-agent-sdk";
+import { initLogger, wrapClaudeAgentSDK } from "braintrust";
 import { z } from "zod";
 import { t } from "../server";
+
+initLogger({
+  projectId: "97e0397b-2d8a-4d66-b167-784ddb6526f8",
+  apiKey: process.env.BRAINTRUST_API_KEY,
+});
+
+// Wrap the Claude SDK with Braintrust tracing
+const { query } = wrapClaudeAgentSDK(claudeSDK);
 
 // Pending answer callbacks by session ID (use Redis in production)
 const pendingAnswers = new Map<
@@ -23,8 +32,12 @@ export const claudeRouter = t.router({
       for await (const event of query({
         prompt: input.message,
         options: {
+          settingSources: ["project"], // enables skills !!!
           resume: input.sessionId,
-          maxTurns: 10,
+          env: {
+            PATH: process.env.PATH,
+            MORPH_API_KEY: process.env.MORPH_API_KEY,
+          },
           systemPrompt: {
             type: "preset",
             preset: "claude_code",
