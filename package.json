@@ -223,12 +223,12 @@
   "devDependencies": {
     "@biomejs/biome": "2.3.8",
     "@types/bun": "catalog:",
-    "@typescript/native-preview": "^7.0.0-dev.20251213.1",
+    "@typescript/native-preview": "^7.0.0-dev.20251221.1",
     "ignore": "catalog:",
     "lefthook": "1.12.2",
     "postcss-load-config": "6.0.1",
     "sort-package-json": "catalog:",
-    "turbo": "2.6.3",
+    "turbo": "2.7.1",
     "typescript": "5.9.2",
     "ultracite": "6.4.0"
   }

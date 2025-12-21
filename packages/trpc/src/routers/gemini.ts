@@ -5,15 +5,33 @@
  */
 
 import { PassThrough } from "node:stream";
-import {
-  type JsonStreamEvent,
-  JsonStreamEventType,
-} from "@google/gemini-cli-core";
+import type { JsonStreamEvent } from "@google/gemini-cli-core";
+
+// Inlined from @google/gemini-cli-core to avoid bundling native deps
+export const JsonStreamEventType = {
+  INIT: "init",
+  MESSAGE: "message",
+  TOOL_USE: "tool_use",
+  TOOL_RESULT: "tool_result",
+  ERROR: "error",
+  RESULT: "result",
+} as const;
+
 import { Client } from "ssh2";
 import { z } from "zod";
 import { t } from "../server";
 
-type GeminiStreamEvent = JsonStreamEvent | { type: "raw"; line: string };
+type LocalErrorEvent = {
+  type: "error";
+  timestamp: string;
+  severity: string;
+  message: string;
+};
+
+type GeminiStreamEvent =
+  | JsonStreamEvent
+  | { type: "raw"; line: string }
+  | LocalErrorEvent;
 
 // MorphCloud SSH configuration
 const MORPH_SSH_HOST = "ssh.cloud.morph.so";
