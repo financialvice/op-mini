@@ -2,6 +2,7 @@ import { authRouter } from "./routers/auth";
 import { claudeRouter } from "./routers/claude";
 import { codexRouter } from "./routers/codex";
 import { flyRouter } from "./routers/fly";
+import { geminiRouter } from "./routers/gemini";
 import { helloRouter } from "./routers/hello";
 import { hetznerRouter } from "./routers/hetzner";
 import { instantdbRouter } from "./routers/instantdb";
@@ -17,6 +18,7 @@ export const appRouter = t.router({
   claude: claudeRouter,
   codex: codexRouter,
   fly: flyRouter,
+  gemini: geminiRouter,
   hello: helloRouter,
   hetzner: hetznerRouter,
   instantdb: instantdbRouter,

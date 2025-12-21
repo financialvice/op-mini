@@ -31,6 +31,7 @@
       "@babel/core": "^7.20.0",
       "@expo/metro-config": "54.0.2",
       "@expo/vector-icons": "15.0.3",
+      "@google/gemini-cli-core": "latest",
       "@gorhom/bottom-sheet": "^5",
       "@hookform/resolvers": "5.2.2",
       "@instantdb/admin": "0.22.84",
