@@ -16,6 +16,7 @@ type Snapshot =
 type Machine = InstaQLEntity<AppSchema, "machines">;
 type Server = RouterOutputs["hetzner"]["servers"]["list"][number];
 type HetznerTemplate = RouterOutputs["hetzner"]["templates"]["list"][number];
+type FlyMachine = RouterOutputs["fly"]["machines"]["list"]["machines"][number];
 
 export const InstanceStatus = {
   PENDING: "pending",
@@ -48,6 +49,50 @@ export default function HomePage() {
   );
   const { data: hetznerTemplates } = useQuery(
     trpc.hetzner.templates.list.queryOptions()
+  );
+  const { data: flyMachinesData } = useQuery({
+    ...trpc.fly.machines.list.queryOptions(),
+    refetchInterval: 5000,
+  });
+  const { mutateAsync: createFlyMachine } = useMutation(
+    trpc.fly.machines.create.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.fly.machines.list.queryKey(),
+        }),
+    })
+  );
+  const { mutateAsync: deleteFlyMachine } = useMutation(
+    trpc.fly.machines.delete.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.fly.machines.list.queryKey(),
+        }),
+    })
+  );
+  const { mutateAsync: startFlyMachine } = useMutation(
+    trpc.fly.machines.start.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.fly.machines.list.queryKey(),
+        }),
+    })
+  );
+  const { mutateAsync: stopFlyMachine } = useMutation(
+    trpc.fly.machines.stop.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.fly.machines.list.queryKey(),
+        }),
+    })
+  );
+  const { mutateAsync: suspendFlyMachine } = useMutation(
+    trpc.fly.machines.suspend.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.fly.machines.list.queryKey(),
+        }),
+    })
   );
   const { mutateAsync: createInstance } = useMutation(
     trpc.morph.instances.create.mutationOptions({
@@ -129,7 +174,7 @@ export default function HomePage() {
       >
         Create Machine
       </button>
-      <div className="grid w-full grid-cols-5 gap-2 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_h2]:font-semibold [&_h2]:text-lg">
+      <div className="grid w-full grid-cols-6 gap-2 [&>div]:flex [&>div]:flex-col [&>div]:gap-1 [&_h2]:font-semibold [&_h2]:text-lg">
         <div>
           <div className="flex items-center gap-2">
             <h2>Machines</h2>
@@ -246,6 +291,29 @@ export default function HomePage() {
               key={server.id}
               onDelete={() => deleteHetznerServer({ id: server.id })}
               server={server}
+            />
+          ))}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2>Fly Machines</h2>
+            <button
+              className="font-mono text-green-500 text-xs hover:text-green-400"
+              onClick={() => createFlyMachine()}
+              title="Create Fly machine"
+              type="button"
+            >
+              ＋
+            </button>
+          </div>
+          {flyMachinesData?.machines.map((machine: FlyMachine) => (
+            <FlyMachineRow
+              key={machine.id}
+              machine={machine}
+              onDelete={() => deleteFlyMachine({ machineId: machine.id })}
+              onStart={() => startFlyMachine({ machineId: machine.id })}
+              onStop={() => stopFlyMachine({ machineId: machine.id })}
+              onSuspend={() => suspendFlyMachine({ machineId: machine.id })}
             />
           ))}
         </div>
@@ -650,6 +718,76 @@ function ServerRow({
         <Link
           className="text-green-500 hover:text-green-400"
           href={`/terminal/${server.id}`}
+          title="Open terminal"
+        >
+          &gt;_
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function FlyMachineRow({
+  machine,
+  onDelete,
+  onStart,
+  onStop,
+  onSuspend,
+}: {
+  machine: FlyMachine;
+  onDelete: () => void;
+  onStart: () => void;
+  onStop: () => void;
+  onSuspend: () => void;
+}) {
+  const isStarted = machine.state === "started";
+
+  return (
+    <div className="flex h-6 items-center justify-between gap-1 rounded border px-1 font-mono text-xs">
+      <div className="flex items-center gap-1 truncate">
+        <span className="truncate">{machine.name}</span>
+        <span className="text-gray-500">{machine.state}</span>
+        <span className="text-gray-500">{machine.region}</span>
+      </div>
+      <div className="flex gap-1">
+        <button
+          className="text-red-500 hover:text-red-400"
+          onClick={onDelete}
+          title="Delete"
+          type="button"
+        >
+          ×
+        </button>
+        <button
+          className="text-red-500 hover:text-red-400 disabled:opacity-30"
+          disabled={!isStarted}
+          onClick={onStop}
+          title="Stop"
+          type="button"
+        >
+          ■
+        </button>
+        <button
+          className="text-blue-500 hover:text-blue-400 disabled:opacity-30"
+          disabled={!isStarted}
+          onClick={onSuspend}
+          title="Suspend"
+          type="button"
+        >
+          ⏸
+        </button>
+        <button
+          className="text-green-500 hover:text-green-400 disabled:opacity-30"
+          disabled={isStarted}
+          onClick={onStart}
+          title="Start"
+          type="button"
+        >
+          ▶
+        </button>
+        <Link
+          className="text-green-500 hover:text-green-400"
+          href={`/terminal/${machine.id}?provider=fly`}
           title="Open terminal"
         >
           &gt;_

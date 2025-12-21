@@ -11,8 +11,9 @@ type FileToWrite = {
 };
 
 type TerminalSocketData = {
-  provider: "morph" | "hetzner";
+  provider: "morph" | "hetzner" | "fly";
   machineId: string;
+  privateIp?: string; // For Fly machines: direct IP when running inside Fly network
   env?: Record<string, string>;
   files?: FileToWrite[];
   cols: number;
@@ -33,6 +34,8 @@ const port = Number.parseInt(process.env.TERMINAL_BRIDGE_PORT ?? "8787", 10);
 const morphApiKey = "morph_k4bK5nJrMbx5oBGWs6cVGe";
 const hetznerApiToken = process.env.HETZNER_API_TOKEN;
 const hetznerSshKey = process.env.HETZNER_SSH_PRIVATE_KEY;
+const flySshKey = process.env.FLY_SSH_PRIVATE_KEY;
+const flyAppName = "op-mini";
 
 // Temp keypair for Morph (server validates API key in username, not the SSH key)
 const { privateKey: morphTempKey } = generateKeyPairSync("rsa", {
@@ -42,8 +45,9 @@ const { privateKey: morphTempKey } = generateKeyPairSync("rsa", {
 });
 
 async function getSSHConfig(
-  provider: "morph" | "hetzner",
-  machineId: string
+  provider: "morph" | "hetzner" | "fly",
+  machineId: string,
+  privateIp?: string
 ): Promise<SSHConfig> {
   if (provider === "hetzner") {
     if (!hetznerApiToken) {
@@ -70,6 +74,34 @@ async function getSSHConfig(
       port: 22,
       username: "root",
       privateKey: hetznerSshKey,
+    };
+  }
+
+  if (provider === "fly") {
+    if (!flySshKey) {
+      throw new Error("FLY_SSH_PRIVATE_KEY not configured");
+    }
+
+    // If privateIp is provided (when running inside Fly network), connect directly
+    if (privateIp) {
+      return {
+        host: privateIp,
+        port: 2222, // Internal SSH port
+        username: "root",
+        privateKey: flySshKey,
+      };
+    }
+
+    // Fallback: connect via Fly's proxy (load-balanced across all machines)
+    // WARNING: This may connect to a different machine than expected if multiple exist
+    console.warn(
+      `[fly] No privateIp for ${machineId}, using proxy (may hit wrong machine)`
+    );
+    return {
+      host: `${flyAppName}.fly.dev`,
+      port: 22,
+      username: "root",
+      privateKey: flySshKey,
     };
   }
 
@@ -113,20 +145,31 @@ function applySessionSetup(
   stream.write(`echo "${INIT_COMPLETE_MARKER}"; clear\n`);
 }
 
+/** Safely send data to WebSocket if still open */
+function safeSend(ws: ServerWebSocket<TerminalSocketData>, data: string): void {
+  try {
+    if (ws.readyState === 1) {
+      ws.send(data);
+    }
+  } catch {
+    // WebSocket may be closed
+  }
+}
+
 async function openShell(
   ws: ServerWebSocket<TerminalSocketData>
 ): Promise<void> {
-  const { provider, machineId, cols, rows, env, files } = ws.data;
+  const { provider, machineId, privateIp, cols, rows, env, files } = ws.data;
 
   if (!machineId) {
-    ws.send("Missing machine identifier.\r\n");
+    safeSend(ws, "Missing machine identifier.\r\n");
     ws.close(1008, "machine required");
     return;
   }
 
   try {
-    ws.send(`Connecting to ${machineId}...\r\n`);
-    const config = await getSSHConfig(provider, machineId);
+    safeSend(ws, `Connecting to ${machineId}...\r\n`);
+    const config = await getSSHConfig(provider, machineId, privateIp);
 
     const ssh = new Client();
     let disposed = false;
@@ -146,41 +189,64 @@ async function openShell(
     ws.data.dispose = cleanup;
 
     ssh.on("ready", () => {
-      ssh.shell({ term: "xterm-256color", cols, rows }, (err, stream) => {
-        if (err) {
-          ws.send(`Error: ${err.message}\r\n`);
-          cleanup();
-          ws.close(1011, "shell error");
-          return;
+      // Check if connection was disposed during SSH handshake
+      if (disposed) {
+        return;
+      }
+
+      ssh.shell(
+        { term: "xterm-256color", cols, rows, modes: { ECHO: 1 } },
+        (err, stream) => {
+          // Check again after shell is established
+          if (disposed) {
+            return;
+          }
+
+          if (err) {
+            safeSend(ws, `Error: ${err.message}\r\n`);
+            cleanup();
+            ws.close(1011, "shell error");
+            return;
+          }
+
+          ws.data.stream = stream;
+
+          stream.on("data", (chunk: Buffer) => {
+            if (!disposed) {
+              safeSend(ws, chunk.toString("utf8"));
+            }
+          });
+          stream.stderr?.on("data", (chunk: Buffer) => {
+            if (!disposed) {
+              safeSend(ws, chunk.toString("utf8"));
+            }
+          });
+          stream.on("close", () => {
+            if (!disposed) {
+              safeSend(ws, "\r\nSession closed.\r\n");
+            }
+            cleanup();
+            ws.close();
+          });
+
+          safeSend(ws, "Connected.\r\n");
+          applySessionSetup(stream, env, files);
         }
-
-        ws.data.stream = stream;
-
-        stream.on("data", (chunk: Buffer) => ws.send(chunk.toString("utf8")));
-        stream.stderr?.on("data", (chunk: Buffer) =>
-          ws.send(chunk.toString("utf8"))
-        );
-        stream.on("close", () => {
-          ws.send("\r\nSession closed.\r\n");
-          cleanup();
-          ws.close();
-        });
-
-        ws.send("Connected.\r\n");
-        applySessionSetup(stream, env, files);
-      });
+      );
     });
 
     ssh.on("error", (err) => {
-      ws.send(`Error: ${err.message}\r\n`);
-      cleanup();
-      ws.close(1011, "ssh error");
+      if (!disposed) {
+        safeSend(ws, `Error: ${err.message}\r\n`);
+        cleanup();
+        ws.close(1011, "ssh error");
+      }
     });
 
     ssh.connect(config);
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Connection failed";
-    ws.send(`Error: ${msg}\r\n`);
+    safeSend(ws, `Error: ${msg}\r\n`);
     ws.close(1011, "bridge error");
   }
 }
@@ -212,8 +278,12 @@ const bridgeServer = serve<TerminalSocketData, undefined>({
       if (!machineId) {
         return new Response("machineId required", { status: 400 });
       }
-      if (provider !== "morph" && provider !== "hetzner") {
-        return new Response("provider must be 'morph' or 'hetzner'", {
+      if (
+        provider !== "morph" &&
+        provider !== "hetzner" &&
+        provider !== "fly"
+      ) {
+        return new Response("provider must be 'morph', 'hetzner', or 'fly'", {
           status: 400,
         });
       }
@@ -222,6 +292,7 @@ const bridgeServer = serve<TerminalSocketData, undefined>({
         data: {
           machineId,
           provider,
+          privateIp: url.searchParams.get("privateIp") ?? undefined,
           env: parseJsonParam(url.searchParams.get("env")),
           files: parseJsonParam(url.searchParams.get("files")),
           cols: Number.parseInt(url.searchParams.get("cols") ?? "", 10) || 80,

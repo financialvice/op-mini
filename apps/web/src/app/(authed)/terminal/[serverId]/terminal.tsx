@@ -66,14 +66,58 @@ function waitForDimensions(
   return () => observer.disconnect();
 }
 
+type WsParamsOptions = {
+  provider: string;
+  machineId: string;
+  privateIp?: string;
+  cols: number;
+  rows: number;
+  env?: Record<string, string>;
+  files?: FileToWrite[];
+};
+
+/** Build WebSocket URL params */
+function buildWsParams(opts: WsParamsOptions): URLSearchParams {
+  const params = new URLSearchParams({
+    provider: opts.provider,
+    machineId: opts.machineId,
+    cols: String(opts.cols),
+    rows: String(opts.rows),
+  });
+  if (opts.privateIp) {
+    params.set("privateIp", opts.privateIp);
+  }
+  if (opts.env && Object.keys(opts.env).length > 0) {
+    params.set("env", JSON.stringify(opts.env));
+  }
+  if (opts.files && opts.files.length > 0) {
+    params.set("files", JSON.stringify(opts.files));
+  }
+  return params;
+}
+
+/** Create keyboard shortcut interceptor */
+function createKeydownHandler(): (event: KeyboardEvent) => void {
+  return (event: KeyboardEvent) => {
+    if (event.metaKey) {
+      const key = event.key.toLowerCase();
+      if (key !== "c" && key !== "v") {
+        event.stopPropagation();
+      }
+    }
+  };
+}
+
 export function TerminalComponent({
   machineId,
   provider,
+  privateIp,
   env,
   files,
 }: {
   machineId: string;
   provider: string;
+  privateIp?: string;
   env?: Record<string, string>;
   files?: FileToWrite[];
 }) {
@@ -87,6 +131,11 @@ export function TerminalComponent({
   const [loadingFit, setLoadingFit] = useState<FitAddon | null>(null);
   const [mainTerm, setMainTerm] = useState<Terminal | null>(null);
   const [mainFit, setMainFit] = useState<FitAddon | null>(null);
+  const mainDisposedRef = useRef(false);
+
+  useEffect(() => {
+    setIsReady(false);
+  }, [machineId, provider, privateIp]);
 
   // Initialize ghostty-web WASM module
   useEffect(() => {
@@ -120,7 +169,7 @@ export function TerminalComponent({
       return;
     }
 
-    let interval: ReturnType<typeof setInterval>;
+    let interval: ReturnType<typeof setInterval> | undefined;
     const cleanup = waitForDimensions(loadingRef.current, () => {
       loadingTerm.open(loadingRef.current!);
       loadingFit.fit();
@@ -129,7 +178,7 @@ export function TerminalComponent({
       if (loadingTerm.textarea) {
         loadingTerm.textarea.style.caretColor = "transparent";
       }
-      loadingTerm.write("\x1b[?25l"); // Hide cursor escape sequence
+      loadingTerm.write("\x1b[?25l");
 
       const prompt = "root@operator:~# ";
       let dots = 1;
@@ -145,7 +194,9 @@ export function TerminalComponent({
 
     return () => {
       cleanup();
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
   }, [loadingTerm, loadingFit, isReady]);
 
@@ -167,13 +218,16 @@ export function TerminalComponent({
     setMainFit(fit);
 
     return () => term.dispose();
-  }, [ghosttyReady]);
+  }, [ghosttyReady, machineId, provider, privateIp]);
 
   // Focus terminal when it becomes ready/visible
   useEffect(() => {
-    if (isReady && mainTerm) {
-      mainTerm.focus();
+    if (!(isReady && mainTerm)) {
+      return;
     }
+
+    const frame = requestAnimationFrame(() => mainTerm.focus());
+    return () => cancelAnimationFrame(frame);
   }, [isReady, mainTerm]);
 
   // Open main terminal and connect WebSocket
@@ -182,9 +236,20 @@ export function TerminalComponent({
       return;
     }
 
-    let ws: WebSocket;
-    let resizeHandler: () => void;
+    mainDisposedRef.current = false;
+    const safeWrite = (data: string) => {
+      if (mainDisposedRef.current) {
+        return;
+      }
+      try {
+        mainTerm.write(data);
+      } catch {
+        // Ignore writes after dispose.
+      }
+    };
 
+    let ws: WebSocket | undefined;
+    let resizeHandler: (() => void) | undefined;
     let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
     const cleanup = waitForDimensions(mainRef.current, () => {
@@ -198,34 +263,20 @@ export function TerminalComponent({
 
       // Intercept browser shortcuts before ghostty-web's InputHandler captures them
       // InputHandler listens on the parent element, so we must intercept there
-      keydownHandler = (event: KeyboardEvent) => {
-        // Let Cmd+key combinations pass through to browser (except Cmd+C/V)
-        if (event.metaKey) {
-          const key = event.key.toLowerCase();
-          if (key !== "c" && key !== "v") {
-            // Stop propagation so InputHandler never sees this event
-            event.stopPropagation();
-            // Don't preventDefault - let browser handle Cmd+R, Cmd+T, etc.
-          }
-        }
-      };
+      keydownHandler = createKeydownHandler();
       mainRef.current!.addEventListener("keydown", keydownHandler, {
         capture: true,
       });
 
-      const { cols, rows } = mainTerm;
-      const params = new URLSearchParams({
+      const params = buildWsParams({
         provider,
         machineId,
-        cols: String(cols),
-        rows: String(rows),
+        privateIp,
+        cols: mainTerm.cols,
+        rows: mainTerm.rows,
+        env,
+        files,
       });
-      if (env && Object.keys(env).length > 0) {
-        params.set("env", JSON.stringify(env));
-      }
-      if (files && files.length > 0) {
-        params.set("files", JSON.stringify(files));
-      }
 
       ws = new WebSocket(`${BRIDGE_URL}/terminal?${params}`);
 
@@ -235,7 +286,7 @@ export function TerminalComponent({
       ws.onmessage = (e) => {
         const data = e.data as string;
         if (initComplete) {
-          mainTerm.write(data);
+          safeWrite(data);
         } else {
           buffer += data;
           if (buffer.includes(INIT_COMPLETE_MARKER)) {
@@ -245,18 +296,18 @@ export function TerminalComponent({
         }
       };
 
-      ws.onclose = () => mainTerm.write("\r\n[Disconnected]\r\n");
-      ws.onerror = () => mainTerm.write("\r\n[Connection error]\r\n");
+      ws.onclose = () => safeWrite("\r\n[Disconnected]\r\n");
+      ws.onerror = () => safeWrite("\r\n[Connection error]\r\n");
 
       mainTerm.onData((data) => {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws?.readyState === WebSocket.OPEN) {
           ws.send(data);
         }
       });
 
       resizeHandler = () => {
         mainFit.fit();
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws?.readyState === WebSocket.OPEN) {
           ws.send(
             JSON.stringify({
               type: "resize",
@@ -270,7 +321,13 @@ export function TerminalComponent({
     });
 
     return () => {
+      mainDisposedRef.current = true;
       cleanup();
+      if (ws) {
+        ws.onmessage = null;
+        ws.onclose = null;
+        ws.onerror = null;
+      }
       ws?.close();
       if (resizeHandler) {
         window.removeEventListener("resize", resizeHandler);
@@ -281,7 +338,7 @@ export function TerminalComponent({
         });
       }
     };
-  }, [mainTerm, mainFit, machineId, provider, env, files]);
+  }, [mainTerm, mainFit, machineId, provider, privateIp, env, files]);
 
   return (
     <div className="relative h-full w-full">

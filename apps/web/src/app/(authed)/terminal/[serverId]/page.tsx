@@ -38,6 +38,12 @@ export default function TerminalPage() {
     refetchIntervalInBackground: true,
   });
 
+  // Fetch Fly machine details to get privateIp
+  const { data: flyMachine } = useQuery({
+    ...trpc.fly.machines.get.queryOptions({ machineId: instanceId }),
+    enabled: provider === "fly" && !!instanceId,
+  });
+
   const env = useMemo(() => {
     const vars: Record<string, string> = {
       IS_SANDBOX: "true",
@@ -118,18 +124,28 @@ approval_policy = "never"
     return null;
   }
 
+  // Wait for Fly machine privateIp before rendering terminal
+  const isFlyReady = provider !== "fly" || !!flyMachine?.private_ip;
+
   return (
     <div className="flex h-full flex-col bg-black p-2">
       <div className="mb-2 font-mono text-gray-400 text-sm">
         {provider}: {params.serverId}
       </div>
       <div className="flex-1">
-        <TerminalComponent
-          env={env}
-          files={files}
-          machineId={params.serverId}
-          provider={provider}
-        />
+        {isFlyReady ? (
+          <TerminalComponent
+            env={env}
+            files={files}
+            machineId={params.serverId}
+            privateIp={flyMachine?.private_ip}
+            provider={provider}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center font-mono text-gray-500">
+            Loading machine details...
+          </div>
+        )}
       </div>
     </div>
   );

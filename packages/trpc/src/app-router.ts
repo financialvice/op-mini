@@ -1,6 +1,7 @@
 import { authRouter } from "./routers/auth";
 import { claudeRouter } from "./routers/claude";
 import { codexRouter } from "./routers/codex";
+import { flyRouter } from "./routers/fly";
 import { helloRouter } from "./routers/hello";
 import { hetznerRouter } from "./routers/hetzner";
 import { instantdbRouter } from "./routers/instantdb";
@@ -15,14 +16,15 @@ export const appRouter = t.router({
   auth: authRouter,
   claude: claudeRouter,
   codex: codexRouter,
-  simpClaude: simpClaudeRouter,
+  fly: flyRouter,
   hello: helloRouter,
   hetzner: hetznerRouter,
   instantdb: instantdbRouter,
-  morph: morphRouter,
   machines: machinesRouter,
+  morph: morphRouter,
   oauth: oauthRouter,
   sessions: sessionsRouter,
+  simpClaude: simpClaudeRouter,
 });
 
 export type AppRouter = typeof appRouter;
