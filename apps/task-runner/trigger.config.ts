@@ -17,7 +17,9 @@ export default defineConfig({
     },
   },
   maxDuration: 3600,
+  machine: "medium-2x",
   build: {
+    external: ["@anthropic-ai/claude-agent-sdk", "ssh2"],
     extensions: [
       esbuildPlugin(
         sentryEsbuildPlugin({

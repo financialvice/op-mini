@@ -30,10 +30,18 @@ const MORPH_SSH_PORT = 22;
 const MORPH_API_KEY = process.env.MORPH_API_KEY;
 const MORPH_INSTANCE_ID = process.env.MORPH_INSTANCE_ID;
 const MORPH_SSH_PRIVATE_KEY = process.env.MORPH_SSH_PRIVATE_KEY;
+const CLAUDE_CODE_OAUTH_TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
 
-if (!(MORPH_API_KEY && MORPH_INSTANCE_ID && MORPH_SSH_PRIVATE_KEY)) {
+if (
+  !(
+    MORPH_API_KEY &&
+    MORPH_INSTANCE_ID &&
+    MORPH_SSH_PRIVATE_KEY &&
+    CLAUDE_CODE_OAUTH_TOKEN
+  )
+) {
   throw new Error(
-    "Missing required environment variables: MORPH_API_KEY, MORPH_INSTANCE_ID, MORPH_SSH_PRIVATE_KEY"
+    "Missing required env vars: MORPH_API_KEY, MORPH_INSTANCE_ID, MORPH_SSH_PRIVATE_KEY, CLAUDE_CODE_OAUTH_TOKEN"
   );
 }
 
@@ -75,7 +83,9 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
 
   // Debug: log the command being executed
   console.log("[SSH] Connecting to:", MORPH_SSH_HOST);
+  console.log("[SSH] Instance ID:", MORPH_INSTANCE_ID);
   console.log("[SSH] Full command:", commandWithEnv);
+  console.log("[SSH] CLI args:", cliArgs);
 
   // Connect SSH asynchronously
   sshClient.on("ready", () => {
@@ -209,11 +219,12 @@ export const simpClaudeRouter = t.router({
         options: {
           settingSources: ["project"], // enables skills !!!
           resume: input.sessionId,
+          permissionMode: "bypassPermissions",
           env: {
             PATH: process.env.PATH,
-            MORPH_API_KEY: "morph_DNwxus9LQCG5Z5F5QVLnNW",
-            CLAUDE_CODE_OAUTH_TOKEN:
-              "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",
+            MORPH_API_KEY,
+            CLAUDE_CODE_OAUTH_TOKEN,
+            IS_SANDBOX: "true",
           },
           systemPrompt: {
             type: "preset",

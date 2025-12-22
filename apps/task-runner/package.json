@@ -12,16 +12,19 @@
   },
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@repo/db": "workspace:*",
     "@repo/tasks": "workspace:*",
     "@sentry/esbuild-plugin": "catalog:",
     "@sentry/node": "catalog:",
     "@trigger.dev/sdk": "catalog:",
+    "ssh2": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@trigger.dev/build": "catalog:",
+    "@types/ssh2": "catalog:",
     "trigger.dev": "catalog:"
   }
 }
