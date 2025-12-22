@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import { PassThrough, type Readable, type Writable } from "node:stream";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  type SDKMessage,
+  type SDKSystemMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import type {
   SpawnedProcess,
   SpawnOptions,
@@ -11,25 +15,13 @@ import {
   runs,
   schemaTask,
   streams,
-  tasks,
 } from "@trigger.dev/sdk";
-import { Client } from "ssh2";
+import { Client, type ClientChannel } from "ssh2";
 import { z } from "zod";
 
 // ============================================================================
 // Stream Definitions
 // ============================================================================
-
-/**
- * Event types streamed from the Claude agent task.
- */
-export type ClaudeEvent =
-  | { type: "init"; sessionId: string }
-  | { type: "text"; content: string }
-  | { type: "tool.start"; toolId: string; name: string; input?: string }
-  | { type: "tool.done"; toolId: string; output: string }
-  | { type: "result"; durationMs?: number; costUsd?: number }
-  | { type: "error"; message: string };
 
 /**
  * Stream for Claude agent events (as JSON strings for reliable serialization).
@@ -39,8 +31,11 @@ export const claudeEventStream: ReturnType<typeof streams.define<string>> =
     id: "claude-events",
   });
 
+type StreamError = { type: "error"; message: string };
+type ClaudeStreamEvent = SDKMessage | StreamError;
+
 /** Append a typed event to the stream as JSON */
-async function emitEvent(event: ClaudeEvent) {
+async function emitEvent(event: ClaudeStreamEvent) {
   await claudeEventStream.append(JSON.stringify(event));
 }
 
@@ -73,9 +68,13 @@ function buildSshCommand(options: SpawnOptions): string {
     .filter(Boolean)
     .join("; ");
 
+  const wrappedCommand = `bash -lc ${JSON.stringify(
+    `trap 'kill -- -$$' EXIT INT TERM; ${commandWithEnv}`
+  )}`;
+
   logger.debug("[SSH] Full command", { command: commandWithEnv });
 
-  return commandWithEnv;
+  return wrappedCommand;
 }
 
 type SshChannelContext = {
@@ -85,7 +84,8 @@ type SshChannelContext = {
   stdinPassthrough: PassThrough;
   stdoutPassthrough: PassThrough;
   emitter: EventEmitter;
-  state: { killed: boolean; exitCode: number | null };
+  state: { killed: boolean; exitCode: number | null; channel?: ClientChannel };
+  terminate: (reason: string) => void;
 };
 
 function setupSshChannel(ctx: SshChannelContext) {
@@ -97,6 +97,7 @@ function setupSshChannel(ctx: SshChannelContext) {
       return;
     }
 
+    ctx.state.channel = channel;
     ctx.stdinPassthrough.pipe(channel);
     channel.pipe(ctx.stdoutPassthrough);
 
@@ -105,20 +106,7 @@ function setupSshChannel(ctx: SshChannelContext) {
     });
 
     ctx.options.signal.addEventListener("abort", () => {
-      if (!ctx.state.killed) {
-        ctx.state.killed = true;
-        logger.info("Aborting SSH process");
-        // Send SIGINT first (Ctrl+C behavior)
-        channel.signal("INT");
-        setTimeout(() => {
-          // Send SIGKILL if still running
-          channel.signal("KILL");
-          setTimeout(() => {
-            channel.close();
-            ctx.sshClient.end();
-          }, 500);
-        }, 500);
-      }
+      ctx.terminate("abort");
     });
 
     channel.on("exit", (code: number | null, signal: string | null) => {
@@ -150,7 +138,39 @@ function createMorphSpawnedProcess(
   const sshClient = new Client();
   const stdinPassthrough = new PassThrough();
   const stdoutPassthrough = new PassThrough();
-  const state = { killed: false, exitCode: null as number | null };
+  const state = {
+    killed: false,
+    exitCode: null as number | null,
+    channel: undefined as ClientChannel | undefined,
+  };
+
+  const terminate = (reason: string) => {
+    if (state.killed) {
+      return;
+    }
+    state.killed = true;
+    logger.info("Aborting SSH process", { reason });
+
+    if (state.channel) {
+      try {
+        state.channel.signal("INT");
+      } catch (error) {
+        logger.debug("Failed to send SIGINT", { error });
+      }
+      try {
+        state.channel.signal("TERM");
+      } catch (error) {
+        logger.debug("Failed to send SIGTERM", { error });
+      }
+      try {
+        state.channel.close();
+      } catch (error) {
+        logger.debug("Failed to close SSH channel", { error });
+      }
+    }
+
+    sshClient.end();
+  };
 
   const command = buildSshCommand(options);
   logger.info("SSH connecting", { host: MORPH_SSH_HOST });
@@ -165,6 +185,7 @@ function createMorphSpawnedProcess(
       stdoutPassthrough,
       emitter,
       state,
+      terminate,
     });
   });
 
@@ -191,11 +212,7 @@ function createMorphSpawnedProcess(
       return state.exitCode;
     },
     kill(): boolean {
-      if (state.killed) {
-        return false;
-      }
-      state.killed = true;
-      sshClient.end();
+      terminate("kill");
       return true;
     },
     on(event, listener) {
@@ -210,111 +227,10 @@ function createMorphSpawnedProcess(
   };
 }
 
-// ============================================================================
-// Event Processing
-// ============================================================================
+const isSessionInit = (event: SDKMessage): event is SDKSystemMessage =>
+  event.type === "system" && event.subtype === "init";
 
-type RawEvent = {
-  type?: string;
-  subtype?: string;
-  session_id?: string;
-  message?: {
-    content?: Array<{
-      type: string;
-      text?: string;
-      name?: string;
-      id?: string;
-      input?: unknown;
-      content?: string | unknown;
-      tool_use_id?: string;
-    }>;
-  };
-  duration_ms?: number;
-  total_cost_usd?: number;
-};
-
-async function handleInitEvent(e: RawEvent): Promise<string | undefined> {
-  if (e.type === "system" && e.subtype === "init" && e.session_id) {
-    await emitEvent({ type: "init", sessionId: e.session_id });
-    return e.session_id;
-  }
-  return;
-}
-
-async function handleAssistantEvent(e: RawEvent): Promise<boolean> {
-  if (e.type !== "assistant" || !e.message?.content) {
-    return false;
-  }
-
-  for (const block of e.message.content) {
-    if (block.type === "text" && block.text) {
-      await emitEvent({ type: "text", content: block.text });
-    } else if (block.type === "tool_use" && block.name && block.id) {
-      await emitEvent({
-        type: "tool.start",
-        toolId: block.id,
-        name: block.name,
-        input: block.input ? JSON.stringify(block.input, null, 2) : undefined,
-      });
-    }
-  }
-  return true;
-}
-
-async function handleUserEvent(e: RawEvent): Promise<boolean> {
-  if (e.type !== "user" || !e.message?.content) {
-    return false;
-  }
-
-  for (const block of e.message.content) {
-    if (block.type === "tool_result") {
-      const toolId = block.tool_use_id || block.id;
-      if (toolId) {
-        const output =
-          typeof block.content === "string"
-            ? block.content
-            : JSON.stringify(block.content);
-        await emitEvent({ type: "tool.done", toolId, output });
-      }
-    }
-  }
-  return true;
-}
-
-async function handleResultEvent(e: RawEvent): Promise<boolean> {
-  if (e.type !== "result") {
-    return false;
-  }
-
-  await emitEvent({
-    type: "result",
-    durationMs: e.duration_ms,
-    costUsd: e.total_cost_usd,
-  });
-  return true;
-}
-
-async function processClaudeEvent(
-  event: unknown,
-  currentSessionId: string | undefined
-): Promise<string | undefined> {
-  const e = event as RawEvent;
-
-  const initSessionId = await handleInitEvent(e);
-  if (initSessionId) {
-    return initSessionId;
-  }
-
-  if (await handleAssistantEvent(e)) {
-    return currentSessionId;
-  }
-  if (await handleUserEvent(e)) {
-    return currentSessionId;
-  }
-  await handleResultEvent(e);
-
-  return currentSessionId;
-}
+const runAbortControllers = new Map<string, AbortController>();
 
 // ============================================================================
 // Task Definition
@@ -340,16 +256,21 @@ export const claudeAgent = schemaTask({
   description: "Run Claude Code agent on MorphCloud VM",
   schema: claudeAgentPayload,
   retry: { maxAttempts: 1 },
-  run: async (payload, { signal }) => {
+  onCancel: ({ ctx }) => {
+    const controller = runAbortControllers.get(ctx.run.id);
+    if (controller) {
+      logger.info("onCancel hook: aborting Claude process", {
+        runId: ctx.run.id,
+      });
+      controller.abort();
+    }
+  },
+  run: async (payload, { signal, ctx }) => {
     const abortController = new AbortController();
+    runAbortControllers.set(ctx.run.id, abortController);
 
     signal.addEventListener("abort", () => {
       logger.info("Task cancelled, aborting Claude process");
-      abortController.abort();
-    });
-
-    tasks.onCancel(() => {
-      logger.info("onCancel hook: ensuring process termination");
       abortController.abort();
     });
 
@@ -391,7 +312,10 @@ export const claudeAgent = schemaTask({
             createMorphSpawnedProcess(morphConfig, opts),
         },
       })) {
-        sessionId = await processClaudeEvent(event, sessionId);
+        if (isSessionInit(event)) {
+          sessionId = event.session_id;
+        }
+        await emitEvent(event);
       }
 
       return { sessionId, status: "completed" as const };
@@ -406,6 +330,8 @@ export const claudeAgent = schemaTask({
       logger.error("Claude agent error", { error: message });
       await emitEvent({ type: "error", message });
       throw error;
+    } finally {
+      runAbortControllers.delete(ctx.run.id);
     }
   },
 });

@@ -10,6 +10,56 @@ const morph = new MorphCloudClient({
   apiKey: "morph_k4bK5nJrMbx5oBGWs6cVGe",
 });
 
+// Archil configuration for syncing ~/.claude and ~/.codex across machines
+const ARCHIL_CONFIG = {
+  token: process.env.ARCHIL_MOUNT_TOKEN ?? "adt_dfjcqy5avpfofk7t4in4ip",
+  disk: process.env.ARCHIL_DISK ?? "cam@dubdubdub.xyz/op-mini-test",
+};
+
+/**
+ * Mount Archil on a MorphCloud instance and set up ~/.claude and ~/.codex
+ * @param instance - The MorphCloud instance to mount on
+ * @param copyFromInstanceId - Optional: copy claude/codex data from another instance's directory
+ */
+async function mountArchilOnInstance(
+  instance: Instance,
+  copyFromInstanceId?: string
+): Promise<{ success: boolean; error?: string }> {
+  const machineId = instance.id; // e.g., morphvm_abc123
+
+  // Mount Archil using the helper script installed in the template
+  const mountCmd = `ARCHIL_MOUNT_TOKEN=${ARCHIL_CONFIG.token} ARCHIL_DISK=${ARCHIL_CONFIG.disk} /usr/local/bin/mount-archil.sh ${machineId}`;
+  const mountResult = await instance.exec(mountCmd, { timeout: 60 });
+
+  if (mountResult.exit_code !== 0) {
+    return {
+      success: false,
+      error: `Archil mount failed: ${mountResult.stderr || mountResult.stdout}`,
+    };
+  }
+
+  // If copying from a parent instance, copy the claude/codex data
+  // Uses new structure: /mnt/archil/<machine-id>/claude (no /machines/ subdir)
+  if (copyFromInstanceId) {
+    const copyCmd = `
+      if [ -d "/mnt/archil/${copyFromInstanceId}/claude" ]; then
+        cp -r /mnt/archil/${copyFromInstanceId}/claude/* /mnt/archil/${machineId}/claude/ 2>/dev/null || true
+      fi
+      if [ -d "/mnt/archil/${copyFromInstanceId}/codex" ]; then
+        cp -r /mnt/archil/${copyFromInstanceId}/codex/* /mnt/archil/${machineId}/codex/ 2>/dev/null || true
+      fi
+      echo "Copied data from ${copyFromInstanceId} to ${machineId}"
+    `;
+    const copyResult = await instance.exec(copyCmd, { timeout: 30 });
+    if (copyResult.exit_code !== 0) {
+      console.warn(`[mountArchilOnInstance] Copy failed: ${copyResult.stderr}`);
+      // Don't fail the whole operation, just warn
+    }
+  }
+
+  return { success: true };
+}
+
 export const morphRouter = t.router({
   templates: {
     create: t.procedure
@@ -224,12 +274,13 @@ export const morphRouter = t.router({
     }),
   },
   instance: {
-    // start an instance from a snapshot
+    // start an instance from a snapshot (auto-mounts Archil)
     start: t.procedure
       .input(
         z.object({
           snapshotId: z.string(),
           metadata: z.record(z.string(), z.string()).optional(),
+          mountArchil: z.boolean().optional().default(true),
         })
       )
       .mutation(async ({ input }) => {
@@ -239,7 +290,25 @@ export const morphRouter = t.router({
           ttlAction: "pause",
           ttlSeconds: 120,
         });
-        return { instanceId: instance.id, status: instance.status };
+
+        // Wait for instance to be ready before mounting Archil
+        await instance.waitUntilReady(30);
+
+        let archilMounted = false;
+        let archilError: string | undefined;
+
+        if (input.mountArchil) {
+          const archilResult = await mountArchilOnInstance(instance);
+          archilMounted = archilResult.success;
+          archilError = archilResult.error;
+        }
+
+        return {
+          instanceId: instance.id,
+          status: instance.status,
+          archilMounted,
+          archilError,
+        };
       }),
     // stop (delete) an instance, gone forever
     stop: t.procedure
@@ -282,12 +351,14 @@ export const morphRouter = t.router({
       }),
     // branch an instance, if paused must pass resume=true in order to resume prior to branching
     // for count=n, will create n new ready instances
+    // auto-mounts Archil and copies claude/codex data from parent
     branch: t.procedure
       .input(
         z.object({
           instanceId: z.string(),
           count: z.number().int().positive().optional().default(1),
           resume: z.boolean().optional().default(false),
+          mountArchil: z.boolean().optional().default(true),
         })
       )
       .mutation(async ({ input }) => {
@@ -304,7 +375,8 @@ export const morphRouter = t.router({
             instance_metadata: {},
           }
         );
-        return z
+
+        const parsed = z
           .object({
             snapshot: z.object({ id: z.string() }),
             instances: z.array(
@@ -312,6 +384,41 @@ export const morphRouter = t.router({
             ),
           })
           .parse(response);
+
+        // Mount Archil on each new instance and copy data from parent
+        const archilResults: Array<{
+          instanceId: string;
+          mounted: boolean;
+          error?: string;
+        }> = [];
+
+        if (input.mountArchil) {
+          await Promise.all(
+            parsed.instances.map(async (inst) => {
+              const instance = await morph.instances.get({
+                instanceId: inst.id,
+              });
+              await instance.waitUntilReady(30);
+
+              const result = await mountArchilOnInstance(
+                instance,
+                input.instanceId // Copy from parent
+              );
+
+              archilResults.push({
+                instanceId: inst.id,
+                mounted: result.success,
+                error: result.error,
+              });
+            })
+          );
+        }
+
+        return {
+          snapshot: parsed.snapshot,
+          instances: parsed.instances,
+          archilResults,
+        };
       }),
   },
   stats: t.procedure.query(async () => {

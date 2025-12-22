@@ -6,7 +6,7 @@ import type {
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk/transport/processTransportTypes";
 import { initLogger, wrapClaudeAgentSDK } from "braintrust";
-import { Client } from "ssh2";
+import { Client, type ClientChannel } from "ssh2";
 import { z } from "zod";
 import { t } from "../server";
 
@@ -60,6 +60,36 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
 
   let _killed = false;
   let _exitCode: number | null = null;
+  let channelRef: ClientChannel | undefined;
+
+  const terminate = (reason: string) => {
+    if (_killed) {
+      return false;
+    }
+    _killed = true;
+
+    if (channelRef) {
+      try {
+        channelRef.signal("INT");
+      } catch {
+        // ignore
+      }
+      try {
+        channelRef.signal("TERM");
+      } catch {
+        // ignore
+      }
+      try {
+        channelRef.close();
+      } catch {
+        // ignore
+      }
+    }
+
+    sshClient.end();
+    console.log("[SSH] Terminated process:", reason);
+    return true;
+  };
 
   // Build the command string
   // The SDK passes: command="node", args=["/local/path/to/cli.js", "--flag1", ...]
@@ -80,6 +110,9 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
   const commandWithEnv = [remotePath, remoteEnvVars, fullCommand]
     .filter(Boolean)
     .join("; ");
+  const wrappedCommand = `bash -lc ${JSON.stringify(
+    `trap 'kill -- -$$' EXIT INT TERM; ${commandWithEnv}`
+  )}`;
 
   // Debug: log the command being executed
   console.log("[SSH] Connecting to:", MORPH_SSH_HOST);
@@ -90,13 +123,15 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
   // Connect SSH asynchronously
   sshClient.on("ready", () => {
     console.log("[SSH] Connected, executing command...");
-    sshClient.exec(commandWithEnv, { pty: false }, (err, channel) => {
+    sshClient.exec(wrappedCommand, { pty: false }, (err, channel) => {
       if (err) {
         console.error("[SSH] Exec error:", err);
         emitter.emit("error", err);
         stdoutPassthrough.destroy(err);
         return;
       }
+
+      channelRef = channel;
 
       // Pipe stdin to channel, channel stdout to our stdout
       stdinPassthrough.pipe(channel);
@@ -112,15 +147,7 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
 
       // Handle abort signal
       options.signal.addEventListener("abort", () => {
-        if (!_killed) {
-          _killed = true;
-          channel.signal("TERM");
-          // Give it a moment, then force close
-          setTimeout(() => {
-            channel.close();
-            sshClient.end();
-          }, 1000);
-        }
+        terminate("abort");
       });
 
       // Handle channel exit
@@ -165,14 +192,7 @@ function createMorphSpawnedProcess(options: SpawnOptions) {
       return _exitCode;
     },
     kill(_signal: NodeJS.Signals): boolean {
-      if (_killed) {
-        return false;
-      }
-      _killed = true;
-      // The SSH channel kill will happen via the abort signal listener
-      // For now just end the client
-      sshClient.end();
-      return true;
+      return terminate("kill");
     },
     on(
       event: "exit" | "error",

@@ -10,7 +10,15 @@ RUN apt-get update && apt-get install -y \
     tmux \
     unzip \
     wget \
+    libfuse2 \
+    fuse \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Archil client
+RUN curl -fsSL -o /tmp/install-archil.sh https://s3.amazonaws.com/archil-client/install \
+    && chmod +x /tmp/install-archil.sh \
+    && ARCHIL_SKIP_IAM_CHECK=1 /tmp/install-archil.sh \
+    && rm /tmp/install-archil.sh
 
 # Install Node.js 20 LTS
 RUN mkdir -p /etc/apt/keyrings \
@@ -58,12 +66,49 @@ RUN printf '%s\n' '#!/bin/bash' \
     > /usr/local/bin/wake-service \
     && chmod +x /usr/local/bin/wake-service
 
-# Create startup script that reads SSH_PUBLIC_KEY env var
+# Create Archil mount point (must be empty for FUSE)
+RUN mkdir -p /mnt/archil
+
+# Create startup script that reads SSH_PUBLIC_KEY and mounts Archil
 RUN printf '%s\n' '#!/bin/bash' \
+    'set -e' \
+    '' \
+    '# Setup SSH authorized_keys' \
     'if [ -n "$SSH_PUBLIC_KEY" ]; then' \
     '    echo "$SSH_PUBLIC_KEY" > /root/.ssh/authorized_keys' \
     '    chmod 600 /root/.ssh/authorized_keys' \
     'fi' \
+    '' \
+    '# Mount Archil if token is provided' \
+    'if [ -n "$ARCHIL_MOUNT_TOKEN" ] && [ -n "$ARCHIL_DISK" ]; then' \
+    '    # Use Fly machine ID for unique directory' \
+    '    MACHINE_ID="fly-${FLY_MACHINE_ID:-unknown}"' \
+    '    echo "Mounting Archil disk: $ARCHIL_DISK (machine: $MACHINE_ID)"' \
+    '    archil mount "$ARCHIL_DISK" /mnt/archil --region aws-us-east-1 --shared --no-fork &' \
+    '    ARCHIL_PID=$!' \
+    '    # Wait for mount to be ready (up to 30 seconds)' \
+    '    for i in $(seq 1 30); do' \
+    '        if mountpoint -q /mnt/archil 2>/dev/null; then' \
+    '            echo "Archil mount ready after ${i}s"' \
+    '            break' \
+    '        fi' \
+    '        sleep 1' \
+    '    done' \
+    '    if mountpoint -q /mnt/archil 2>/dev/null; then' \
+    '        # Create machine-specific directories (mkdir grants ownership in shared mode)' \
+    '        # Using /mnt/archil/$MACHINE_ID/ structure (no /machines/ subdir)' \
+    '        mkdir -p /mnt/archil/$MACHINE_ID/claude' \
+    '        mkdir -p /mnt/archil/$MACHINE_ID/codex' \
+    '        # Create symlinks for .claude and .codex' \
+    '        ln -sf /mnt/archil/$MACHINE_ID/claude /root/.claude' \
+    '        ln -sf /mnt/archil/$MACHINE_ID/codex /root/.codex' \
+    '        echo "Archil mounted: /mnt/archil/$MACHINE_ID"' \
+    '    else' \
+    '        echo "WARNING: Archil mount failed after 30s, continuing without sync"' \
+    '        mkdir -p /root/.claude /root/.codex' \
+    '    fi' \
+    'fi' \
+    '' \
     '/usr/local/bin/wake-service &' \
     'exec /usr/sbin/sshd -D -e' \
     > /usr/local/bin/start.sh \

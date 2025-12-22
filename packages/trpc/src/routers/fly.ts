@@ -59,6 +59,8 @@ const getDevboxConfig = () => ({
   ],
   env: {
     SSH_PUBLIC_KEY: sshPublicKey ?? "",
+    ARCHIL_MOUNT_TOKEN: process.env.ARCHIL_MOUNT_TOKEN ?? "",
+    ARCHIL_DISK: process.env.ARCHIL_DISK ?? "",
   },
 });
 

@@ -23,6 +23,7 @@
     "commander": "catalog:"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "tsup": "catalog:"
   }

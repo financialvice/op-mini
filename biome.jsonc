@@ -2,7 +2,11 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["ultracite/core", "ultracite/next", "ultracite/react"],
   "files": {
-    "includes": ["**", "!apps/mobile/.rnstorybook/storybook.requires.ts", "!packages/trpc/src/lib/codex-types/**"]
+    "includes": [
+      "**",
+      "!apps/mobile/.rnstorybook/storybook.requires.ts",
+      "!packages/trpc/src/lib/codex-types"
+    ]
   },
   "javascript": {
     "globals": ["__DEV__"]

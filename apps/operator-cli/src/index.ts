@@ -1,3 +1,4 @@
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { configure, runs, streams, tasks } from "@trigger.dev/sdk";
 import { Command } from "commander";
 
@@ -6,14 +7,8 @@ configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
 });
 
-// Stream event types (must match task-runner)
-type ClaudeEvent =
-  | { type: "init"; sessionId: string }
-  | { type: "text"; content: string }
-  | { type: "tool.start"; toolId: string; name: string; input?: string }
-  | { type: "tool.done"; toolId: string; output: string }
-  | { type: "result"; durationMs?: number; costUsd?: number }
-  | { type: "error"; message: string };
+type StreamError = { type: "error"; message: string };
+type ClaudeStreamEvent = SDKMessage | StreamError;
 
 // Define the stream (JSON strings, must match task-runner)
 const claudeEventStream = streams.define<string>({
@@ -33,40 +28,110 @@ function getMorphInstanceId(): string {
   return morphInstanceId;
 }
 
-function handleClaudeEvent(event: ClaudeEvent) {
-  switch (event.type) {
-    case "init":
-      console.log(`Session: ${event.sessionId}`);
-      break;
-    case "text":
-      process.stdout.write(event.content);
-      break;
-    case "tool.start":
-      console.log(`\n[Tool: ${event.name}]`);
-      if (event.input) {
-        console.log(event.input);
-      }
-      break;
-    case "tool.done": {
-      const truncated = event.output.length > 200;
-      const output = truncated
-        ? `${event.output.slice(0, 200)}...`
-        : event.output;
-      console.log(`[Output: ${output}]`);
-      break;
-    }
-    case "result": {
-      const cost = event.costUsd?.toFixed(4) ?? "N/A";
-      console.log(`\n\nCompleted in ${event.durationMs}ms, cost: $${cost}`);
-      break;
-    }
-    case "error":
-      console.error(`\nError: ${event.message}`);
-      break;
-    default:
-      // Ignore unknown event types
-      break;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function formatOutput(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
   }
+  return JSON.stringify(content) ?? "";
+}
+
+function handleSystemEvent(event: SDKMessage): boolean {
+  if (event.type !== "system" || event.subtype !== "init") {
+    return false;
+  }
+  console.log(`Session: ${event.session_id}`);
+  return true;
+}
+
+function handleAssistantEvent(event: SDKMessage): boolean {
+  if (event.type !== "assistant") {
+    return false;
+  }
+
+  const content = Array.isArray(event.message?.content)
+    ? event.message.content
+    : [];
+
+  for (const block of content) {
+    if (!isRecord(block)) {
+      continue;
+    }
+
+    if (block.type === "text" && typeof block.text === "string") {
+      process.stdout.write(block.text);
+      continue;
+    }
+
+    if (
+      block.type === "tool_use" &&
+      typeof block.name === "string" &&
+      typeof block.id === "string"
+    ) {
+      console.log(`\n[Tool: ${block.name}]`);
+      if (block.input !== undefined) {
+        console.log(JSON.stringify(block.input, null, 2));
+      }
+    }
+  }
+  return true;
+}
+
+function handleUserEvent(event: SDKMessage): boolean {
+  if (event.type !== "user") {
+    return false;
+  }
+
+  const content = Array.isArray(event.message?.content)
+    ? event.message.content
+    : [];
+
+  for (const block of content) {
+    if (!isRecord(block) || block.type !== "tool_result") {
+      continue;
+    }
+
+    const output = formatOutput(block.content);
+    const truncated = output.length > 200;
+    const display = truncated ? `${output.slice(0, 200)}...` : output;
+    console.log(`[Output: ${display}]`);
+  }
+  return true;
+}
+
+function handleResultEvent(event: SDKMessage): boolean {
+  if (event.type !== "result") {
+    return false;
+  }
+
+  const duration = event.duration_ms ?? "N/A";
+  const cost =
+    typeof event.total_cost_usd === "number"
+      ? event.total_cost_usd.toFixed(4)
+      : "N/A";
+  console.log(`\n\nCompleted in ${duration}ms, cost: $${cost}`);
+  return true;
+}
+
+function handleClaudeEvent(event: ClaudeStreamEvent) {
+  if (event.type === "error") {
+    console.error(`\nError: ${event.message}`);
+    return;
+  }
+
+  if (handleSystemEvent(event)) {
+    return;
+  }
+  if (handleAssistantEvent(event)) {
+    return;
+  }
+  if (handleUserEvent(event)) {
+    return;
+  }
+  handleResultEvent(event);
 }
 
 async function streamAgentEvents(runId: string) {
@@ -77,7 +142,7 @@ async function streamAgentEvents(runId: string) {
 
   for await (const jsonStr of stream) {
     try {
-      const event = JSON.parse(jsonStr) as ClaudeEvent;
+      const event = JSON.parse(jsonStr) as ClaudeStreamEvent;
       handleClaudeEvent(event);
 
       // "result" and "error" are terminal events - exit after receiving them
@@ -90,6 +155,53 @@ async function streamAgentEvents(runId: string) {
   }
 
   console.log("\nAgent finished.");
+}
+
+async function runAgent(prompt: string, sessionId?: string): Promise<number> {
+  const morphInstanceId = getMorphInstanceId();
+
+  const handle = await tasks.trigger("claude-agent", {
+    prompt,
+    sessionId,
+    morphInstanceId,
+  });
+
+  console.log(`Run ID: ${handle.id}`);
+  console.log("Streaming events... (Ctrl+C to cancel)\n");
+
+  let cancelled = false;
+  const onSigint = async () => {
+    if (cancelled) {
+      return;
+    }
+    cancelled = true;
+    console.log("\n\nCancelling agent...");
+    try {
+      await runs.cancel(handle.id);
+      console.log("Agent cancelled.");
+    } catch {
+      console.error("Failed to cancel agent");
+    }
+    process.exit(0);
+  };
+
+  process.on("SIGINT", onSigint);
+
+  try {
+    await streamAgentEvents(handle.id);
+    return 0;
+  } catch (error) {
+    if (!cancelled) {
+      console.error(
+        "Stream error:",
+        error instanceof Error ? error.message : error
+      );
+      return 1;
+    }
+    return 0;
+  } finally {
+    process.off("SIGINT", onSigint);
+  }
 }
 
 // ============================================================================
@@ -112,51 +224,12 @@ agents
   .argument("<prompt>", "The prompt for the agent")
   .option("--session <id>", "Resume an existing session")
   .action(async (prompt: string, options: { session?: string }) => {
-    const morphInstanceId = getMorphInstanceId();
-
     console.log("Starting Claude agent...");
     if (options.session) {
       console.log(`Resuming session: ${options.session}`);
     }
-
-    const handle = await tasks.trigger("claude-agent", {
-      prompt,
-      sessionId: options.session,
-      morphInstanceId,
-    });
-
-    console.log(`Run ID: ${handle.id}`);
-    console.log("Streaming events... (Ctrl+C to cancel)\n");
-
-    // Handle Ctrl+C
-    let cancelled = false;
-    process.on("SIGINT", async () => {
-      if (cancelled) {
-        return;
-      }
-      cancelled = true;
-      console.log("\n\nCancelling agent...");
-      try {
-        await runs.cancel(handle.id);
-        console.log("Agent cancelled.");
-      } catch {
-        console.error("Failed to cancel agent");
-      }
-      process.exit(0);
-    });
-
-    try {
-      await streamAgentEvents(handle.id);
-      process.exit(0);
-    } catch (error) {
-      if (!cancelled) {
-        console.error(
-          "Stream error:",
-          error instanceof Error ? error.message : error
-        );
-        process.exit(1);
-      }
-    }
+    const exitCode = await runAgent(prompt, options.session);
+    process.exit(exitCode);
   });
 
 agents
@@ -205,48 +278,9 @@ agents
   .argument("<sessionId>", "The session ID to resume")
   .argument("<prompt>", "The prompt for the agent")
   .action(async (sessionId: string, prompt: string) => {
-    const morphInstanceId = getMorphInstanceId();
-
     console.log(`Resuming session: ${sessionId}`);
-
-    const handle = await tasks.trigger("claude-agent", {
-      prompt,
-      sessionId,
-      morphInstanceId,
-    });
-
-    console.log(`Run ID: ${handle.id}`);
-    console.log("Streaming events... (Ctrl+C to cancel)\n");
-
-    // Handle Ctrl+C
-    let cancelled = false;
-    process.on("SIGINT", async () => {
-      if (cancelled) {
-        return;
-      }
-      cancelled = true;
-      console.log("\n\nCancelling agent...");
-      try {
-        await runs.cancel(handle.id);
-        console.log("Agent cancelled.");
-      } catch {
-        console.error("Failed to cancel agent");
-      }
-      process.exit(0);
-    });
-
-    try {
-      await streamAgentEvents(handle.id);
-      process.exit(0);
-    } catch (error) {
-      if (!cancelled) {
-        console.error(
-          "Stream error:",
-          error instanceof Error ? error.message : error
-        );
-        process.exit(1);
-      }
-    }
+    const exitCode = await runAgent(prompt, sessionId);
+    process.exit(exitCode);
   });
 
 // dbs commands
