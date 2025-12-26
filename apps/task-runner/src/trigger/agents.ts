@@ -9,6 +9,7 @@ import type {
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk/transport/processTransportTypes";
+import { adminDb } from "@repo/db/admin";
 import {
   AbortTaskRunError,
   logger,
@@ -18,6 +19,59 @@ import {
 } from "@trigger.dev/sdk";
 import { Client, type ClientChannel } from "ssh2";
 import { z } from "zod";
+
+// ============================================================================
+// OAuth Token Fetching
+// ============================================================================
+
+type OAuthTokens = {
+  claudeToken?: string;
+  githubToken?: string;
+  vercelToken?: string;
+};
+
+async function getOAuthTokensForUser(userId: string): Promise<OAuthTokens> {
+  logger.info("Fetching OAuth tokens for user", { userId });
+
+  const result = await adminDb.db.query({
+    oauthTokens: {
+      $: { where: { "user.id": userId } },
+    },
+  });
+
+  const tokens: OAuthTokens = {};
+
+  for (const token of result.oauthTokens ?? []) {
+    const t = token as { provider?: string; accessToken?: string };
+    if (!t.accessToken) {
+      continue;
+    }
+
+    switch (t.provider) {
+      case "claude":
+        tokens.claudeToken = t.accessToken;
+        break;
+      case "github":
+        tokens.githubToken = t.accessToken;
+        break;
+      case "vercel":
+        tokens.vercelToken = t.accessToken;
+        break;
+      default:
+        // Ignore other providers (codex, etc.)
+        break;
+    }
+  }
+
+  logger.info("OAuth tokens fetched", {
+    userId,
+    hasClaude: Boolean(tokens.claudeToken),
+    hasGithub: Boolean(tokens.githubToken),
+    hasVercel: Boolean(tokens.vercelToken),
+  });
+
+  return tokens;
+}
 
 // ============================================================================
 // Stream Definitions
@@ -240,9 +294,69 @@ const claudeAgentPayload = z.object({
   prompt: z.string(),
   sessionId: z.string().optional(),
   morphInstanceId: z.string(),
+  userId: z.string().optional(), // Fetch OAuth tokens for this user
 });
 
 export type ClaudeAgentPayload = z.infer<typeof claudeAgentPayload>;
+
+type AgentConfig = {
+  morphConfig: MorphConfig;
+  agentEnv: Record<string, string | undefined>;
+};
+
+async function prepareAgentConfig(
+  morphInstanceId: string,
+  userId?: string
+): Promise<AgentConfig> {
+  const morphApiKey = process.env.MORPH_API_KEY;
+  const morphSshPrivateKey = process.env.MORPH_SSH_PRIVATE_KEY;
+
+  if (!(morphApiKey && morphSshPrivateKey)) {
+    throw new Error(
+      "Missing required env vars: MORPH_API_KEY, MORPH_SSH_PRIVATE_KEY"
+    );
+  }
+
+  // Fetch OAuth tokens for user (or fall back to env)
+  let claudeOauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  let githubToken = process.env.GH_TOKEN;
+  let vercelToken = process.env.VERCEL_TOKEN;
+
+  if (userId) {
+    const tokens = await getOAuthTokensForUser(userId);
+    claudeOauthToken = tokens.claudeToken ?? claudeOauthToken;
+    githubToken = tokens.githubToken ?? githubToken;
+    vercelToken = tokens.vercelToken ?? vercelToken;
+  }
+
+  if (!claudeOauthToken) {
+    throw new Error(
+      "Missing Claude OAuth token - either provide userId or set CLAUDE_CODE_OAUTH_TOKEN"
+    );
+  }
+
+  const agentEnv: Record<string, string | undefined> = {
+    PATH: process.env.PATH,
+    MORPH_API_KEY: morphApiKey,
+    CLAUDE_CODE_OAUTH_TOKEN: claudeOauthToken,
+    IS_SANDBOX: "true",
+  };
+  if (githubToken) {
+    agentEnv.GH_TOKEN = githubToken;
+  }
+  if (vercelToken) {
+    agentEnv.VERCEL_TOKEN = vercelToken;
+  }
+
+  return {
+    morphConfig: {
+      apiKey: morphApiKey,
+      instanceId: morphInstanceId,
+      sshPrivateKey: morphSshPrivateKey,
+    },
+    agentEnv,
+  };
+}
 
 /**
  * Claude agent task that runs on a remote MorphCloud VM.
@@ -274,22 +388,10 @@ export const claudeAgent = schemaTask({
       abortController.abort();
     });
 
-    // Get secrets from environment
-    const morphApiKey = process.env.MORPH_API_KEY;
-    const morphSshPrivateKey = process.env.MORPH_SSH_PRIVATE_KEY;
-    const claudeOauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-
-    if (!(morphApiKey && morphSshPrivateKey && claudeOauthToken)) {
-      throw new Error(
-        "Missing required env vars: MORPH_API_KEY, MORPH_SSH_PRIVATE_KEY, CLAUDE_CODE_OAUTH_TOKEN"
-      );
-    }
-
-    const morphConfig: MorphConfig = {
-      apiKey: morphApiKey,
-      instanceId: payload.morphInstanceId,
-      sshPrivateKey: morphSshPrivateKey,
-    };
+    const { morphConfig, agentEnv } = await prepareAgentConfig(
+      payload.morphInstanceId,
+      payload.userId
+    );
 
     let sessionId: string | undefined = payload.sessionId;
 
@@ -301,12 +403,7 @@ export const claudeAgent = schemaTask({
           settingSources: ["project"],
           resume: payload.sessionId,
           permissionMode: "bypassPermissions",
-          env: {
-            PATH: process.env.PATH,
-            MORPH_API_KEY: morphApiKey,
-            CLAUDE_CODE_OAUTH_TOKEN: claudeOauthToken,
-            IS_SANDBOX: "true",
-          },
+          env: agentEnv,
           systemPrompt: { type: "preset", preset: "claude_code" },
           spawnClaudeCodeProcess: (opts) =>
             createMorphSpawnedProcess(morphConfig, opts),

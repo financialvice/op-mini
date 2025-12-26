@@ -2,6 +2,7 @@
 @source "../**/*.{ts,tsx}";
 
 @import "tw-animate-css";
+@plugin "tailwindcss-fade";
 
 @custom-variant dark (&:is(.dark *));
 

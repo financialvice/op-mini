@@ -1,5 +1,5 @@
-import type { Instance, Snapshot } from "morphcloud";
-import { type InstanceExecResponse, MorphCloudClient } from "morphcloud";
+import type { Snapshot } from "morphcloud";
+import { MorphCloudClient } from "morphcloud";
 import z from "zod";
 import { t } from "../server";
 import { devboxTemplate } from "./machine-templates";
@@ -10,184 +10,127 @@ const morph = new MorphCloudClient({
   apiKey: "morph_k4bK5nJrMbx5oBGWs6cVGe",
 });
 
-// Archil configuration for syncing ~/.claude and ~/.codex across machines
-const ARCHIL_CONFIG = {
-  token: process.env.ARCHIL_MOUNT_TOKEN ?? "adt_dfjcqy5avpfofk7t4in4ip",
-  disk: process.env.ARCHIL_DISK ?? "cam@dubdubdub.xyz/op-mini-test",
-};
-
-/**
- * Mount Archil on a MorphCloud instance and set up ~/.claude and ~/.codex
- * @param instance - The MorphCloud instance to mount on
- * @param copyFromInstanceId - Optional: copy claude/codex data from another instance's directory
- */
-async function mountArchilOnInstance(
-  instance: Instance,
-  copyFromInstanceId?: string
-): Promise<{ success: boolean; error?: string }> {
-  const machineId = instance.id; // e.g., morphvm_abc123
-
-  // Mount Archil using the helper script installed in the template
-  const mountCmd = `ARCHIL_MOUNT_TOKEN=${ARCHIL_CONFIG.token} ARCHIL_DISK=${ARCHIL_CONFIG.disk} /usr/local/bin/mount-archil.sh ${machineId}`;
-  const mountResult = await instance.exec(mountCmd, { timeout: 60 });
-
-  if (mountResult.exit_code !== 0) {
-    return {
-      success: false,
-      error: `Archil mount failed: ${mountResult.stderr || mountResult.stdout}`,
-    };
+// Helper: Get or create the morphvm-minimal base snapshot
+async function getOrCreateBaseSnapshot(): Promise<Snapshot> {
+  const candidates = await morph.snapshots.list({ digest: "morphvm-minimal" });
+  if (candidates[0]) {
+    return candidates[0];
   }
+  return morph.snapshots.create({
+    imageId: "morphvm-minimal",
+    vcpus: 1,
+    memory: 4096,
+    diskSize: 16_384,
+    metadata: { type: "template-base" },
+    digest: "morphvm-minimal",
+  });
+}
 
-  // If copying from a parent instance, copy the claude/codex data
-  // Uses new structure: /mnt/archil/<machine-id>/claude (no /machines/ subdir)
-  if (copyFromInstanceId) {
-    const copyCmd = `
-      if [ -d "/mnt/archil/${copyFromInstanceId}/claude" ]; then
-        cp -r /mnt/archil/${copyFromInstanceId}/claude/* /mnt/archil/${machineId}/claude/ 2>/dev/null || true
-      fi
-      if [ -d "/mnt/archil/${copyFromInstanceId}/codex" ]; then
-        cp -r /mnt/archil/${copyFromInstanceId}/codex/* /mnt/archil/${machineId}/codex/ 2>/dev/null || true
-      fi
-      echo "Copied data from ${copyFromInstanceId} to ${machineId}"
-    `;
-    const copyResult = await instance.exec(copyCmd, { timeout: 30 });
-    if (copyResult.exit_code !== 0) {
-      console.warn(`[mountArchilOnInstance] Copy failed: ${copyResult.stderr}`);
-      // Don't fail the whole operation, just warn
-    }
+// Helper: Log template creation error details
+function logTemplateError(
+  stepNum: number,
+  totalSteps: number,
+  command: string,
+  error: unknown
+): void {
+  console.error(`[templates.create] Command ${stepNum}/${totalSteps} FAILED`);
+  console.error(`[templates.create] Command: ${command}`);
+  console.error("[templates.create] Error:", error);
+  if (error instanceof Error) {
+    console.error(`[templates.create] Error message: ${error.message}`);
+    console.error(`[templates.create] Error stack: ${error.stack}`);
   }
+}
 
-  return { success: true };
+// Helper: Build snapshot metadata for template step
+function buildStepMetadata(opts: {
+  stepNum: number;
+  totalSteps: number;
+  command: string;
+  completedCount: number;
+  template: string[];
+}): Record<string, string> {
+  const { stepNum, totalSteps, command, completedCount, template } = opts;
+  const isLastStep = stepNum === totalSteps;
+  return {
+    type: isLastStep ? "template" : "template-step",
+    name: "devbox",
+    step: `${stepNum}/${totalSteps}`,
+    command: command.slice(0, 200),
+    completed: String(completedCount),
+    ...(isLastStep
+      ? {
+          description:
+            "Standard devbox with Node.js, Bun, Claude Code, Codex, pm2, tmux, uv, gh, vercel",
+          commands: JSON.stringify(template),
+          base: "morphvm-minimal",
+        }
+      : { progress: `${Math.round((stepNum / totalSteps) * 100)}%` }),
+  };
 }
 
 export const morphRouter = t.router({
   templates: {
     create: t.procedure
-      .input(
-        z.object({
-          name: z.enum(["devbox"]),
-        })
-      )
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fix later once we know goal
-      .mutation(async ({ input }) => {
+      .input(z.object({ name: z.enum(["devbox"]) }))
+      .mutation(async ({ input: _input }) => {
         const template = devboxTemplate;
-        let buildSnapshot: Snapshot | null = null;
-        let instance: Instance | null = null;
-        const commandResults: InstanceExecResponse[] = [];
+        let currentSnapshot = await getOrCreateBaseSnapshot();
+        let completedCount = 0;
 
-        try {
-          buildSnapshot = await morph.snapshots.create({
-            imageId: "morphvm-minimal",
-            vcpus: 2,
-            memory: 4096,
-            diskSize: 8192,
-            metadata: {
-              type: "template-build",
-              name: input.name,
-            },
-          });
-
-          instance = await morph.instances.start({
-            snapshotId: buildSnapshot.id,
-            ttlSeconds: 1800, // 30 minutes
-            ttlAction: "pause", // delete
-            metadata: {
-              type: "template-build",
-              name: input.name,
-            },
-          });
-
-          await instance.waitUntilReady(30); // 30s timeout
-          await instance.exposeHttpService("web", 3000);
-          await instance.exposeHttpService("wake", 42_069);
-          await instance.exposeHttpService("agent", 3456);
-          await instance.setWakeOn(true, true); // wake on ssh, wake on http
-
-          for (let i = 0; i < template.length; i++) {
-            const command = template[i] as string;
-            const result = await instance.exec(command, { timeout: 600 }); // 10 min timeout
-
-            commandResults.push(result);
-
-            if (result.exit_code !== 0) {
-              try {
-                await instance.stop();
-              } catch {
-                // ignore cleanup errors
-              }
-              try {
-                await buildSnapshot.delete();
-              } catch {
-                // ignore cleanup errors
-              }
-
-              return {
-                success: false,
-                error: {
-                  message: `command failed at index ${i}`,
-                  failedCommand: command,
-                  exitCode: result.exit_code,
-                  stderr: result.stderr,
-                  stdout: result.stdout,
-                },
-                commandResults,
-                templateSnapshot: null,
-              };
-            }
+        for (let idx = 0; idx < template.length; idx++) {
+          const command = template[idx];
+          if (!command) {
+            continue;
           }
 
-          // all commands succeeded - create final template snapshot
-          await instance.setMetadata({
-            type: "template",
-            name: input.name,
-            commands: JSON.stringify(template),
-            createdAt: new Date().toISOString(),
-          });
+          const stepNum = idx + 1;
+          const totalSteps = template.length;
 
-          await instance.setTTL(60, "pause"); // 60 second ttl
+          console.log(
+            `[templates.create] Running command ${stepNum}/${totalSteps}: ${command.slice(0, 80)}...`
+          );
 
-          await morph.POST(`/instance/${instance.id}/pause`, {
-            snapshot: false,
-          });
-
-          await buildSnapshot.delete();
-
-          return {
-            success: true,
-            error: null,
-            commandResults,
-            templateInstance: {
-              id: instance.id,
-              status: instance.status,
-              metadata: instance.metadata,
-            },
-          };
-        } catch (error) {
-          if (instance) {
-            try {
-              await instance.stop();
-            } catch {
-              // ignore cleanup errors
-            }
+          try {
+            currentSnapshot = await currentSnapshot.setup(command);
+            completedCount++;
+            await currentSnapshot.setMetadata(
+              buildStepMetadata({
+                stepNum,
+                totalSteps,
+                command,
+                completedCount,
+                template,
+              })
+            );
+            console.log(
+              `[templates.create] Command ${stepNum} succeeded, snapshot: ${currentSnapshot.id}`
+            );
+          } catch (error) {
+            logTemplateError(stepNum, totalSteps, command, error);
+            throw new Error(
+              `Template setup failed at step ${stepNum}: ${command.slice(0, 100)}... - ${error instanceof Error ? error.message : String(error)}`
+            );
           }
-          if (buildSnapshot) {
-            try {
-              await buildSnapshot.delete();
-            } catch {
-              // ignore cleanup errors
-            }
-          }
-
-          throw error;
         }
       }),
   },
   snapshots: {
     // list all snapshots
-    list: t.procedure.query(async () => {
-      const snapshots = await morph.snapshots.list({});
-      return { snapshots: snapshots.map((snapshot) => ({ ...snapshot })) };
-    }),
+    list: t.procedure
+      .input(
+        z
+          .object({
+            metadata: z.record(z.string(), z.string()).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        const snapshots = await morph.snapshots.list({
+          metadata: input?.metadata,
+        });
+        return { snapshots: snapshots.map((snapshot) => ({ ...snapshot })) };
+      }),
     // create a new snapshot
     create: t.procedure.mutation(async () => {
       const snapshot = await morph.snapshots.create({
@@ -205,11 +148,9 @@ export const morphRouter = t.router({
     // delete a snapshot (gone forever)
     delete: t.procedure
       .input(z.object({ snapshotId: z.string() }))
-      .mutation(async ({ input }) => {
-        await (
-          await morph.snapshots.get({ snapshotId: input.snapshotId })
-        ).delete();
-      }),
+      .mutation(async ({ input }) =>
+        (await morph.snapshots.get({ snapshotId: input.snapshotId })).delete()
+      ),
   },
   instances: {
     // full overwrite of metadata
@@ -230,7 +171,9 @@ export const morphRouter = t.router({
     list: t.procedure
       .input(
         z
-          .object({ metadata: z.record(z.string(), z.string()).optional() })
+          .object({
+            metadata: z.record(z.string(), z.string()).optional(),
+          })
           .optional()
       )
       .query(async ({ input }) => {
@@ -274,13 +217,12 @@ export const morphRouter = t.router({
     }),
   },
   instance: {
-    // start an instance from a snapshot (auto-mounts Archil)
+    // start an instance from a snapshot
     start: t.procedure
       .input(
         z.object({
           snapshotId: z.string(),
           metadata: z.record(z.string(), z.string()).optional(),
-          mountArchil: z.boolean().optional().default(true),
         })
       )
       .mutation(async ({ input }) => {
@@ -291,57 +233,47 @@ export const morphRouter = t.router({
           ttlSeconds: 120,
         });
 
-        // Wait for instance to be ready before mounting Archil
         await instance.waitUntilReady(30);
-
-        let archilMounted = false;
-        let archilError: string | undefined;
-
-        if (input.mountArchil) {
-          const archilResult = await mountArchilOnInstance(instance);
-          archilMounted = archilResult.success;
-          archilError = archilResult.error;
-        }
 
         return {
           instanceId: instance.id,
           status: instance.status,
-          archilMounted,
-          archilError,
         };
       }),
     // stop (delete) an instance, gone forever
     stop: t.procedure
       .input(z.object({ instanceId: z.string() }))
-      .mutation(async ({ input }) => {
-        await morph.instances.stop({ instanceId: input.instanceId });
-      }),
+      .mutation(async ({ input }) =>
+        morph.instances.stop({ instanceId: input.instanceId })
+      ),
     // pause an instance, can be resumed
     pause: t.procedure
       .input(z.object({ instanceId: z.string() }))
-      .mutation(async ({ input }) => {
-        await morph.POST(`/instance/${input.instanceId}/pause`, {
+      .mutation(async ({ input }) =>
+        morph.POST(`/instance/${input.instanceId}/pause`, {
           snapshot: false,
-        });
-      }),
+        })
+      ),
     // resume a paused instance
     resume: t.procedure
       .input(z.object({ instanceId: z.string() }))
-      .mutation(async ({ input }) => {
-        await morph.POST(`/instance/${input.instanceId}/resume`);
-      }),
+      .mutation(async ({ input }) =>
+        morph.POST(`/instance/${input.instanceId}/resume`)
+      ),
     // refresh TTL to keep instance alive (query so we can use refetchInterval)
     refreshTtl: t.procedure
       .input(
-        z.object({ instanceId: z.string(), ttlSeconds: z.number().default(60) })
+        z.object({
+          instanceId: z.string(),
+          ttlSeconds: z.number().default(60),
+        })
       )
       .query(async ({ input }) => {
         try {
-          const result = await morph.POST(
-            `/instance/${input.instanceId}/ttl`,
-            {}, // query params
-            { ttl_seconds: input.ttlSeconds, ttl_action: "pause" } // body
-          );
+          const result = await morph.POST(`/instance/${input.instanceId}/ttl`, {
+            ttl_seconds: input.ttlSeconds,
+            ttl_action: "pause",
+          });
 
           return result;
         } catch (err) {
@@ -351,14 +283,12 @@ export const morphRouter = t.router({
       }),
     // branch an instance, if paused must pass resume=true in order to resume prior to branching
     // for count=n, will create n new ready instances
-    // auto-mounts Archil and copies claude/codex data from parent
     branch: t.procedure
       .input(
         z.object({
           instanceId: z.string(),
           count: z.number().int().positive().optional().default(1),
           resume: z.boolean().optional().default(false),
-          mountArchil: z.boolean().optional().default(true),
         })
       )
       .mutation(async ({ input }) => {
@@ -385,39 +315,9 @@ export const morphRouter = t.router({
           })
           .parse(response);
 
-        // Mount Archil on each new instance and copy data from parent
-        const archilResults: Array<{
-          instanceId: string;
-          mounted: boolean;
-          error?: string;
-        }> = [];
-
-        if (input.mountArchil) {
-          await Promise.all(
-            parsed.instances.map(async (inst) => {
-              const instance = await morph.instances.get({
-                instanceId: inst.id,
-              });
-              await instance.waitUntilReady(30);
-
-              const result = await mountArchilOnInstance(
-                instance,
-                input.instanceId // Copy from parent
-              );
-
-              archilResults.push({
-                instanceId: inst.id,
-                mounted: result.success,
-                error: result.error,
-              });
-            })
-          );
-        }
-
         return {
           snapshot: parsed.snapshot,
           instances: parsed.instances,
-          archilResults,
         };
       }),
   },

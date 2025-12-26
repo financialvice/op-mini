@@ -195,9 +195,16 @@ export default function HomePage() {
               ＋
             </button>
           </div>
-          {snapshotsData?.snapshots.map((snapshot: Snapshot) => (
-            <SnapshotRow key={snapshot.id} snapshot={snapshot} />
-          ))}
+          {snapshotsData?.snapshots
+            .filter(
+              (snapshot: Snapshot) =>
+                snapshot.metadata?.type !== "template" &&
+                snapshot.metadata?.type !== "template-step" &&
+                snapshot.metadata?.type !== "template-base"
+            )
+            .map((snapshot: Snapshot) => (
+              <SnapshotRow key={snapshot.id} snapshot={snapshot} />
+            ))}
         </div>
         <div>
           <div className="flex items-center gap-2">

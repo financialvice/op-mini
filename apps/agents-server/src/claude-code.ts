@@ -269,28 +269,6 @@ async function* createMessageGenerator(
 }
 
 /**
- * Set OAuth token in environment and return cleanup function.
- */
-function setupOAuthToken(oauthToken?: string): () => void {
-  if (!oauthToken) {
-    return () => {
-      // no-op cleanup when no token was set
-    };
-  }
-
-  const previous = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-  process.env.CLAUDE_CODE_OAUTH_TOKEN = oauthToken;
-
-  return () => {
-    if (previous !== undefined) {
-      process.env.CLAUDE_CODE_OAUTH_TOKEN = previous;
-    } else {
-      process.env.CLAUDE_CODE_OAUTH_TOKEN = undefined;
-    }
-  };
-}
-
-/**
  * Calculate max thinking tokens from reasoning level.
  */
 function getMaxThinkingTokens(
@@ -313,13 +291,13 @@ export async function* startClaudeSession(
     workingDirectory?: string;
     reasoningLevel?: ReasoningLevel;
     oauthToken?: string;
+    env?: Record<string, string>;
   }
 ): AsyncGenerator<UnifiedEvent> {
   const abortController = new AbortController();
   const cwd = opts.workingDirectory ?? DEFAULT_WORKING_DIR;
   const model = opts.model ?? DEFAULT_CLAUDE_MODEL;
   const maxThinkingTokens = getMaxThinkingTokens(model, opts.reasoningLevel);
-  const cleanupOAuth = setupOAuthToken(opts.oauthToken);
 
   const images = extractImages(content);
   const prompt =
@@ -333,29 +311,31 @@ export async function* startClaudeSession(
       model,
       maxThinkingTokens,
       permissionMode: "bypassPermissions",
+      env: {
+        ...process.env,
+        IS_SANDBOX: "true",
+        ...(opts.oauthToken && { CLAUDE_CODE_OAUTH_TOKEN: opts.oauthToken }),
+        ...opts.env,
+      },
     },
   });
 
   let sessionId: string | null = null;
 
-  try {
-    for await (const message of response) {
-      const raw = message as ClaudeMessage;
+  for await (const message of response) {
+    const raw = message as ClaudeMessage;
 
-      if (raw.type === "system" && raw.subtype === "init" && raw.session_id) {
-        sessionId = raw.session_id;
-        activeSessions.set(sessionId, {
-          provider: "claude",
-          abortController,
-        });
-      }
-
-      for (const event of transformClaudeEvent(raw)) {
-        yield event;
-      }
+    if (raw.type === "system" && raw.subtype === "init" && raw.session_id) {
+      sessionId = raw.session_id;
+      activeSessions.set(sessionId, {
+        provider: "claude",
+        abortController,
+      });
     }
-  } finally {
-    cleanupOAuth();
+
+    for (const event of transformClaudeEvent(raw)) {
+      yield event;
+    }
   }
 }
 
@@ -364,12 +344,21 @@ export async function* continueClaudeSession(
   content: MessageContent[],
   opts: {
     model?: string;
+    workingDirectory?: string;
     reasoningLevel?: ReasoningLevel;
     oauthToken?: string;
+    env?: Record<string, string>;
   } = {}
 ): AsyncGenerator<UnifiedEvent> {
   const abortController = new AbortController();
-  const cleanupOAuth = setupOAuthToken(opts.oauthToken);
+  const cwd = opts.workingDirectory ?? DEFAULT_WORKING_DIR;
+
+  console.log("[continueClaudeSession]", {
+    sessionId,
+    cwd,
+    optsWorkingDirectory: opts.workingDirectory,
+    defaultWorkingDir: DEFAULT_WORKING_DIR,
+  });
 
   activeSessions.set(sessionId, {
     provider: "claude",
@@ -389,21 +378,24 @@ export async function* continueClaudeSession(
     prompt,
     options: {
       abortController,
+      cwd,
       resume: sessionId,
       model,
       maxThinkingTokens,
       permissionMode: "bypassPermissions",
+      env: {
+        ...process.env,
+        IS_SANDBOX: "true",
+        ...(opts.oauthToken && { CLAUDE_CODE_OAUTH_TOKEN: opts.oauthToken }),
+        ...opts.env,
+      },
     },
   });
 
-  try {
-    for await (const message of response) {
-      for (const event of transformClaudeEvent(message as ClaudeMessage)) {
-        yield event;
-      }
+  for await (const message of response) {
+    for (const event of transformClaudeEvent(message as ClaudeMessage)) {
+      yield event;
     }
-  } finally {
-    cleanupOAuth();
   }
 }
 

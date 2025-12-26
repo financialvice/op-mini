@@ -1,6 +1,8 @@
 import { init } from "@instantdb/admin";
 import schema from "./instant.schema";
 
+export { id } from "@instantdb/admin";
+
 /**
  * Server-side InstantDB admin client.
  * Use this in tRPC routes, API routes, or any server-side code.

@@ -122,8 +122,8 @@ export default function AuthedLayout({ children }: { children: ReactNode }) {
         <SetupGuard>
           <div className="flex h-screen max-h-screen flex-col">
             <SidebarProvider className="!min-h-auto h-full w-full">
-              {path !== "/canvas" && <AppSidebar />}
-              {path !== "/canvas" ? (
+              {path !== "/canvas" && path !== "/baby-canvas" && <AppSidebar />}
+              {path !== "/canvas" && path !== "/baby-canvas" ? (
                 <main className="flex-1 overflow-hidden">{children}</main>
               ) : (
                 children

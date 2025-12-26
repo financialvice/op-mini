@@ -56,11 +56,16 @@ const getDevboxConfig = () => ({
       autostop: "off",
       ports: [{ port: 443, handlers: ["tls", "http"] }],
     },
+    {
+      protocol: "tcp",
+      internal_port: 42_070,
+      autostart: true,
+      autostop: "off",
+      ports: [{ port: 42_070, handlers: ["tls", "http"] }],
+    },
   ],
   env: {
     SSH_PUBLIC_KEY: sshPublicKey ?? "",
-    ARCHIL_MOUNT_TOKEN: process.env.ARCHIL_MOUNT_TOKEN ?? "",
-    ARCHIL_DISK: process.env.ARCHIL_DISK ?? "",
   },
 });
 

@@ -20,6 +20,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import {
   CheckCircle,
+  Copy,
   ExternalLink,
   Github,
   Key,
@@ -174,7 +175,19 @@ function TokenStatusCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <span className="font-medium text-sm">Access Token</span>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-sm">Access Token</span>
+            <Button
+              className="h-7 px-2"
+              onClick={() => navigator.clipboard.writeText(token.accessToken)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <Copy className="mr-1 size-3" />
+              Copy Full Token
+            </Button>
+          </div>
           <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-3 font-mono text-xs">
             {token.accessToken.slice(0, 50)}...
           </pre>

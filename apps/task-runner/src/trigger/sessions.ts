@@ -61,6 +61,71 @@ async function getOAuthTokens(
   };
 }
 
+type AllTokens = {
+  claude?: { accessToken: string; idToken?: string };
+  github?: string;
+  vercel?: string;
+};
+
+async function getAllOAuthTokens(userId: string): Promise<AllTokens> {
+  logger.info("Fetching all OAuth tokens for user", { userId });
+  const result = await adminDb.db.query({
+    oauthTokens: {
+      $: { where: { "user.id": userId } },
+    },
+  });
+
+  const tokens: AllTokens = {};
+
+  for (const token of result.oauthTokens ?? []) {
+    const t = token as {
+      provider?: string;
+      accessToken?: string;
+      idToken?: string;
+    };
+    if (!t.accessToken) {
+      continue;
+    }
+
+    switch (t.provider) {
+      case "claude":
+        tokens.claude = { accessToken: t.accessToken, idToken: t.idToken };
+        break;
+      case "github":
+        tokens.github = t.accessToken;
+        break;
+      case "vercel":
+        tokens.vercel = t.accessToken;
+        break;
+      default:
+        break;
+    }
+  }
+
+  logger.info("OAuth tokens fetched", {
+    userId,
+    hasClaude: Boolean(tokens.claude),
+    hasGithub: Boolean(tokens.github),
+    hasVercel: Boolean(tokens.vercel),
+  });
+
+  return tokens;
+}
+
+function buildEnvFromTokens(tokens: AllTokens): Record<string, string> {
+  const env: Record<string, string> = {};
+  if (tokens.claude?.accessToken) {
+    env.CLAUDE_CODE_OAUTH_TOKEN = tokens.claude.accessToken;
+  }
+  if (tokens.github) {
+    env.GH_TOKEN = tokens.github;
+  }
+  if (tokens.vercel) {
+    env.VERCEL_TOKEN = tokens.vercel;
+  }
+  return env;
+}
+
 async function* parseSSEStream(
   response: Response
 ): AsyncGenerator<UnifiedEvent> {
@@ -587,9 +652,11 @@ export const continueSession = schemaTask({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        provider,
         content,
         model,
         reasoningLevel,
+        workingDirectory: "/root",
         ...(oauthToken && { oauthToken }),
         ...(idToken && { idToken }),
       }),
@@ -639,5 +706,160 @@ export const continueSession = schemaTask({
       durationMs,
       messagePreview: preview,
     };
+  },
+});
+
+type SessionEnv = {
+  env: Record<string, string>;
+  oauthToken?: string;
+};
+
+async function buildSessionEnv(
+  userId?: string,
+  inputOauthToken?: string
+): Promise<SessionEnv> {
+  if (!userId) {
+    return { env: {}, oauthToken: inputOauthToken };
+  }
+
+  const allTokens = await getAllOAuthTokens(userId);
+  const env = buildEnvFromTokens(allTokens);
+
+  // Add SWITCHBOARD_USER_ID so operator-cli can auto-detect user
+  env.SWITCHBOARD_USER_ID = userId;
+
+  const oauthToken = inputOauthToken ?? allTokens.claude?.accessToken;
+
+  logger.info("Built session env from user tokens", {
+    userId,
+    envKeys: Object.keys(env),
+    hasOauthToken: Boolean(oauthToken),
+  });
+
+  return { env, oauthToken };
+}
+
+type TokenResolution = {
+  token?: string;
+  source: "direct" | "userId-lookup" | "none";
+};
+
+async function _resolveOAuthToken(
+  provider: "claude" | "codex",
+  inputToken?: string,
+  userId?: string
+): Promise<TokenResolution> {
+  if (inputToken) {
+    return { token: inputToken, source: "direct" };
+  }
+
+  if (!userId) {
+    return { token: undefined, source: "none" };
+  }
+
+  logger.info("Fetching OAuth token for user", { userId, provider });
+  const { accessToken } = await getOAuthTokens(userId, provider);
+
+  if (accessToken) {
+    logger.info("Found OAuth token via userId lookup", {
+      userId,
+      provider,
+      tokenLength: accessToken.length,
+    });
+    return { token: accessToken, source: "userId-lookup" };
+  }
+
+  logger.warn("No OAuth token found for user", { userId, provider });
+  return { token: undefined, source: "none" };
+}
+
+export const babyCanvasSend = schemaTask({
+  id: "baby-canvas-send",
+  description: "Send a one-off message to the agents server on Fly",
+  schema: z.object({
+    machineIp: z.string(),
+    message: z.string().min(1),
+    agentSessionId: z.string().optional(),
+    provider: z.enum(["claude", "codex"]),
+    model: z.string(),
+    reasoningLevel: z.number().int().min(0).max(4),
+    oauthToken: z.string().optional(),
+    userId: z.string().optional(), // Fetch OAuth tokens for this user
+  }),
+  run: async ({
+    machineIp,
+    message,
+    agentSessionId: inputSessionId,
+    provider,
+    model,
+    reasoningLevel,
+    oauthToken: inputOauthToken,
+    userId,
+  }) => {
+    const { env, oauthToken } = await buildSessionEnv(userId, inputOauthToken);
+    const isNewSession = !inputSessionId;
+    const url = inputSessionId
+      ? `http://[${machineIp}]:42070/sessions/${inputSessionId}/continue`
+      : `http://[${machineIp}]:42070/sessions`;
+
+    logger.info("Sending message to agents server", {
+      url,
+      isNewSession,
+      provider,
+      model,
+      envKeys: Object.keys(env),
+    });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider,
+        content: [{ type: "text", text: message } satisfies MessageContent],
+        model,
+        reasoningLevel,
+        workingDirectory: "/root",
+        ...(oauthToken && { oauthToken }),
+        ...(Object.keys(env).length > 0 && { env }),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      throw new Error(
+        `Agent server error: ${response.status} - ${errorText.slice(0, 200)}`
+      );
+    }
+
+    // Process stream and capture session ID from session.start event
+    let capturedSessionId: string | undefined;
+    for await (const event of parseSSEStream(response)) {
+      if (event.type === "session.start" && event.sessionId) {
+        capturedSessionId = event.sessionId;
+        logger.info("Captured session ID", {
+          sessionId: capturedSessionId,
+          isNewSession,
+          inputSessionId,
+        });
+
+        // If we're continuing but got a different session ID, the resume failed
+        if (!isNewSession && capturedSessionId !== inputSessionId) {
+          logger.warn("Resume created new session instead of continuing", {
+            expected: inputSessionId,
+            got: capturedSessionId,
+          });
+        }
+      }
+    }
+
+    // For continue operations, always use the input session ID
+    // For new sessions, use the captured one
+    const finalSessionId = isNewSession ? capturedSessionId : inputSessionId;
+    logger.info("Message sent successfully", {
+      sessionId: finalSessionId,
+      isNewSession,
+    });
+
+    return { success: true, sessionId: finalSessionId };
   },
 });

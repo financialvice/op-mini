@@ -1,6 +1,6 @@
 {
   "name": "@camglynn/agents-server",
-  "version": "0.1.9",
+  "version": "0.1.17",
   "type": "module",
   "description": "Unified server for Claude Code and Codex coding agents",
   "license": "MIT",
@@ -43,16 +43,16 @@
     "access": "restricted"
   },
   "dependencies": {
-    "@repo/agents-core": "workspace:*",
-    "@sinclair/typebox": "catalog:",
-    "@elysiajs/cors": "catalog:",
-    "elysia": "catalog:",
-    "@anthropic-ai/claude-agent-sdk": "catalog:",
-    "@openai/codex-sdk": "catalog:",
-    "@elysiajs/eden": "catalog:"
+    "@sinclair/typebox": "^0.34.41",
+    "@elysiajs/cors": "^1.4.0",
+    "elysia": "^1.4.16",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.75",
+    "@openai/codex-sdk": "^0.75.0",
+    "@elysiajs/eden": "^1.4.5"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@repo/agents-core": "workspace:*",
     "tsup": "catalog:"
   }
 }

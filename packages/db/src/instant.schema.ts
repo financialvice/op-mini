@@ -82,6 +82,14 @@ const _schema = i.schema({
       order: i.number(),
       createdAt: i.date().indexed(),
     }),
+    // Canvas commands for CLI → browser communication
+    canvasCommands: i.entity({
+      expression: i.string(),
+      status: i.string<"pending" | "completed" | "error">().indexed(),
+      result: i.json<unknown>().optional(),
+      error: i.string().optional(),
+      createdAt: i.date().indexed(),
+    }),
   },
   links: {
     userOAuthTokens: {

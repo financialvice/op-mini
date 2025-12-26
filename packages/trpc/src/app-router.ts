@@ -1,4 +1,5 @@
 import { authRouter } from "./routers/auth";
+import { babyCanvasRouter } from "./routers/baby-canvas";
 import { claudeRouter } from "./routers/claude";
 import { codexRouter } from "./routers/codex";
 import { flyRouter } from "./routers/fly";
@@ -15,6 +16,7 @@ import { t } from "./server";
 
 export const appRouter = t.router({
   auth: authRouter,
+  babyCanvas: babyCanvasRouter,
   claude: claudeRouter,
   codex: codexRouter,
   fly: flyRouter,

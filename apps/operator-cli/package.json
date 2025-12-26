@@ -1,6 +1,6 @@
 {
   "name": "@camglynn/operator-cli",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "type": "module",
   "description": "Operator CLI",
   "license": "MIT",
@@ -18,9 +18,14 @@
     "test:e2e": "bun run build && bun run scripts/test-e2e.ts",
     "prepublishOnly": "bun run build"
   },
+  "publishConfig": {
+    "access": "restricted"
+  },
   "dependencies": {
-    "@trigger.dev/sdk": "catalog:",
-    "commander": "catalog:"
+    "@instantdb/admin": "0.22.84",
+    "@trigger.dev/sdk": "^4.3.1",
+    "commander": "14.0.1",
+    "morphcloud": "^0.0.20"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",

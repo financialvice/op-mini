@@ -10,8 +10,10 @@ const shared = {
     "@openai/codex-sdk",
     "elysia",
     "@elysiajs/cors",
+    "@elysiajs/eden",
     "@sinclair/typebox",
   ],
+  noExternal: ["@repo/agents-core"], // Bundle workspace package
 };
 
 export default defineConfig([

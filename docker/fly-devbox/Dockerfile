@@ -10,15 +10,7 @@ RUN apt-get update && apt-get install -y \
     tmux \
     unzip \
     wget \
-    libfuse2 \
-    fuse \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Archil client
-RUN curl -fsSL -o /tmp/install-archil.sh https://s3.amazonaws.com/archil-client/install \
-    && chmod +x /tmp/install-archil.sh \
-    && ARCHIL_SKIP_IAM_CHECK=1 /tmp/install-archil.sh \
-    && rm /tmp/install-archil.sh
 
 # Install Node.js 20 LTS
 RUN mkdir -p /etc/apt/keyrings \
@@ -44,6 +36,11 @@ RUN curl -fsSL https://bun.sh/install | bash
 # Install global tools via bun
 RUN bun install -g pm2 @anthropic-ai/claude-code @openai/codex vercel
 
+# Install private packages and keep .npmrc for runtime installs
+ARG NPM_TOKEN
+RUN echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > /root/.npmrc \
+    && bun install -g @camglynn/agents-server @camglynn/operator-cli
+
 # Install uv (Python package manager)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH=/root/.local/bin:$PATH
@@ -60,16 +57,7 @@ RUN mkdir -p /run/sshd /root/.ssh \
     && sed -i 's/^#\s*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
     && ssh-keygen -A
 
-# Create wake service script (simple HTTP server on 42069 with CORS)
-RUN printf '%s\n' '#!/bin/bash' \
-    'node -e "require(\"http\").createServer((req,res)=>{res.writeHead(200,{\"Access-Control-Allow-Origin\":\"*\"});res.end(\"ok\")}).listen(42069)"' \
-    > /usr/local/bin/wake-service \
-    && chmod +x /usr/local/bin/wake-service
-
-# Create Archil mount point (must be empty for FUSE)
-RUN mkdir -p /mnt/archil
-
-# Create startup script that reads SSH_PUBLIC_KEY and mounts Archil
+# Create startup script that reads SSH_PUBLIC_KEY and starts services
 RUN printf '%s\n' '#!/bin/bash' \
     'set -e' \
     '' \
@@ -79,41 +67,20 @@ RUN printf '%s\n' '#!/bin/bash' \
     '    chmod 600 /root/.ssh/authorized_keys' \
     'fi' \
     '' \
-    '# Mount Archil if token is provided' \
-    'if [ -n "$ARCHIL_MOUNT_TOKEN" ] && [ -n "$ARCHIL_DISK" ]; then' \
-    '    # Use Fly machine ID for unique directory' \
-    '    MACHINE_ID="fly-${FLY_MACHINE_ID:-unknown}"' \
-    '    echo "Mounting Archil disk: $ARCHIL_DISK (machine: $MACHINE_ID)"' \
-    '    archil mount "$ARCHIL_DISK" /mnt/archil --region aws-us-east-1 --shared --no-fork &' \
-    '    ARCHIL_PID=$!' \
-    '    # Wait for mount to be ready (up to 30 seconds)' \
-    '    for i in $(seq 1 30); do' \
-    '        if mountpoint -q /mnt/archil 2>/dev/null; then' \
-    '            echo "Archil mount ready after ${i}s"' \
-    '            break' \
-    '        fi' \
-    '        sleep 1' \
-    '    done' \
-    '    if mountpoint -q /mnt/archil 2>/dev/null; then' \
-    '        # Create machine-specific directories (mkdir grants ownership in shared mode)' \
-    '        # Using /mnt/archil/$MACHINE_ID/ structure (no /machines/ subdir)' \
-    '        mkdir -p /mnt/archil/$MACHINE_ID/claude' \
-    '        mkdir -p /mnt/archil/$MACHINE_ID/codex' \
-    '        # Create symlinks for .claude and .codex' \
-    '        ln -sf /mnt/archil/$MACHINE_ID/claude /root/.claude' \
-    '        ln -sf /mnt/archil/$MACHINE_ID/codex /root/.codex' \
-    '        echo "Archil mounted: /mnt/archil/$MACHINE_ID"' \
-    '    else' \
-    '        echo "WARNING: Archil mount failed after 30s, continuing without sync"' \
-    '        mkdir -p /root/.claude /root/.codex' \
-    '    fi' \
-    'fi' \
+    '# Create local directories for agent state' \
+    'mkdir -p /root/.claude /root/.codex' \
     '' \
-    '/usr/local/bin/wake-service &' \
+    '# Start wake service on port 42069 (simple health check)' \
+    'node -e "require('"'"'http'"'"').createServer((req,res)=>{res.writeHead(200,{'"'"'Access-Control-Allow-Origin'"'"':'"'"'*'"'"'});res.end('"'"'ok'"'"')}).listen(42069)" &' \
+    '' \
+    '# Start agents-server on port 42070' \
+    'cd /root' \
+    'PORT=42070 DEFAULT_WORKING_DIR=/root agents-server &' \
+    '' \
     'exec /usr/sbin/sshd -D -e' \
     > /usr/local/bin/start.sh \
     && chmod +x /usr/local/bin/start.sh
 
-EXPOSE 2222 42069
+EXPOSE 2222 42069 42070
 
 CMD ["/usr/local/bin/start.sh"]

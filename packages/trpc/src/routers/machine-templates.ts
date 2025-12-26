@@ -19,70 +19,18 @@ type MachineTemplate = string[];
  * - tmux for terminal multiplexing
  * - pm2 for process management (via bun)
  * - uv and morphcloud CLI
- * - Archil client for shared filesystem
+ * - agents-server for unified agent management
+ * - operator-cli for template management
+ *
+ * Requires NPM_TOKEN env var for private package installation
  */
 export const devboxTemplate: MachineTemplate = [
   // Set hostname for consistent prompt across providers
   "hostnamectl set-hostname operator",
 
-  // Update apt and install base dependencies (including libfuse2 for Archil)
+  // Update apt and install base dependencies
   "apt-get update",
-  "apt-get install -y ca-certificates gnupg tmux unzip libfuse2 fuse",
-
-  // Install Archil client
-  "curl -fsSL -o /tmp/install-archil.sh https://s3.amazonaws.com/archil-client/install",
-  "chmod +x /tmp/install-archil.sh",
-  "ARCHIL_SKIP_IAM_CHECK=1 /tmp/install-archil.sh",
-  "rm /tmp/install-archil.sh",
-  "mkdir -p /mnt/archil",
-
-  // Create Archil mount helper script (called after instance boot with machine ID)
-  // Usage: ARCHIL_MOUNT_TOKEN=xxx ARCHIL_DISK=yyy /usr/local/bin/mount-archil.sh <machine-id>
-  // Structure: /mnt/archil/<machine-id>/claude, /mnt/archil/<machine-id>/codex
-  // Each machine owns only its directory, avoiding conflicts over shared parent dirs
-  `cat > /usr/local/bin/mount-archil.sh << 'SCRIPT'
-#!/bin/bash
-set -e
-MACHINE_ID=$1
-if [ -z "$MACHINE_ID" ] || [ -z "$ARCHIL_MOUNT_TOKEN" ] || [ -z "$ARCHIL_DISK" ]; then
-  echo "Usage: ARCHIL_MOUNT_TOKEN=xxx ARCHIL_DISK=yyy mount-archil.sh <machine-id>"
-  exit 1
-fi
-echo "Mounting Archil disk: $ARCHIL_DISK (machine: $MACHINE_ID)"
-archil mount "$ARCHIL_DISK" /mnt/archil --region aws-us-east-1 --shared --no-fork &
-for i in $(seq 1 30); do
-  if mountpoint -q /mnt/archil 2>/dev/null; then
-    echo "Archil mount ready after \${i}s"
-    break
-  fi
-  sleep 1
-done
-if ! mountpoint -q /mnt/archil 2>/dev/null; then
-  echo "ERROR: Archil mount failed after 30s"
-  exit 1
-fi
-
-# Create machine-specific directory (mkdir in unowned parent grants ownership)
-# If parent is owned by another client, force checkout to take ownership briefly
-MACHINE_DIR="/mnt/archil/$MACHINE_ID"
-if ! mkdir -p "$MACHINE_DIR" 2>/dev/null; then
-  echo "Parent owned by another client, forcing checkout..."
-  echo "y" | archil checkout "$MACHINE_DIR" --force 2>/dev/null || true
-  mkdir -p "$MACHINE_DIR"
-fi
-
-# Create subdirs for claude and codex
-mkdir -p "$MACHINE_DIR/claude" "$MACHINE_DIR/codex"
-
-# Create symlinks
-rm -f /root/.claude /root/.codex
-ln -sf "$MACHINE_DIR/claude" /root/.claude
-ln -sf "$MACHINE_DIR/codex" /root/.codex
-
-echo "Archil mounted: $MACHINE_DIR"
-archil delegations /mnt/archil 2>/dev/null || true
-SCRIPT`,
-  "chmod +x /usr/local/bin/mount-archil.sh",
+  "apt-get install -y ca-certificates gnupg tmux unzip",
 
   // Install GitHub CLI (gh)
   "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg",
@@ -113,6 +61,12 @@ EOF`,
   // Install AI coding assistants and deployment tools globally via bun
   "$HOME/.bun/bin/bun install -g @anthropic-ai/claude-code @openai/codex vercel",
 
+  // Configure npm for private packages (token injected at runtime)
+  'echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc',
+
+  // Install agents-server and operator-cli for unified agent management
+  "$HOME/.bun/bin/bun install -g @camglynn/agents-server @camglynn/operator-cli",
+
   // Install uv (fast Python package installer) and morphcloud CLI
   "curl -LsSf https://astral.sh/uv/install.sh | sh",
   `cat >> ~/.profile << 'EOF'
@@ -123,8 +77,11 @@ export PATH="$HOME/.local/bin:$PATH"
 EOF`,
   "$HOME/.local/bin/uv tool install morphcloud",
 
-  // Start wake service on port 42069 for HTTP wake-on-lan (with CORS headers)
+  // Start wake service on port 42069 for HTTP health checks (with CORS headers)
   `$HOME/.bun/bin/pm2 start --name wake "node -e \\"require('http').createServer((req,res)=>{res.writeHead(200,{'Access-Control-Allow-Origin':'*'});res.end('ok')}).listen(42069)\\""`,
+
+  // Start agents-server on port 42070 (provides HTTP API for agent sessions)
+  `$HOME/.bun/bin/pm2 start --name agents-server "PORT=42070 DEFAULT_WORKING_DIR=/root agents-server"`,
   "$HOME/.bun/bin/pm2 save",
 
   // Clean up apt cache to save disk space

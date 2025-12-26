@@ -24,6 +24,7 @@ export default function TerminalPage() {
   const provider = searchParams.get("provider") ?? "hetzner";
   const trpc = useTRPC();
 
+  const { id: userId } = db.useUser();
   const { token: claudeToken } = db.useOAuthToken("claude");
   const { token: codexToken } = db.useOAuthToken("codex");
   const { token: githubToken } = db.useOAuthToken("github");
@@ -47,8 +48,18 @@ export default function TerminalPage() {
   const env = useMemo(() => {
     const vars: Record<string, string> = {
       IS_SANDBOX: "true",
+      // Morph API for template commands
       MORPH_API_KEY: "morph_k4bK5nJrMbx5oBGWs6cVGe",
+      // InstantDB for operator CLI database access
+      NEXT_PUBLIC_INSTANT_APP_ID: "10a35d54-22ab-40d4-99e9-1a2b8d9b90b3",
+      INSTANT_APP_ADMIN_TOKEN: "23361bdb-bc19-409a-91fb-c34a3db049d1",
+      // Trigger.dev for workflow tasks
+      TRIGGER_SECRET_KEY: "tr_dev_1enhpd7g8ZgWvqtQoulG",
     };
+    // User ID for operator CLI to fetch OAuth tokens
+    if (userId) {
+      vars.SWITCHBOARD_USER_ID = userId;
+    }
     if (claudeToken?.accessToken) {
       vars.CLAUDE_CODE_OAUTH_TOKEN = claudeToken.accessToken;
     }
@@ -60,6 +71,7 @@ export default function TerminalPage() {
     }
     return vars;
   }, [
+    userId,
     claudeToken?.accessToken,
     githubToken?.accessToken,
     vercelToken?.accessToken,
